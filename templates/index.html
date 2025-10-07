@@ -180,10 +180,19 @@
             document.getElementById('lastUpdated').textContent = '';
 
             try {
-                const response = await fetch(`http://127.0.0.1:5000/get_data?device_id=${currentDeviceId}`);
+                // *** ここを修正：相対URLに変更 ***
+                const response = await fetch(`/get_data?device_id=${currentDeviceId}`);
                 const data = await response.json();
                 
                 if (response.ok) {
+                    // エラーメッセージがある場合は、それを表示
+                    if (data.error) {
+                        document.getElementById('temperature').textContent = 'エラー: ' + data.error;
+                        document.getElementById('status').textContent = data.status === '0' ? '停止中' : 'N/A'; // ステータスもエラーに応じて表示
+                        updateChart([], []);
+                        return;
+                    }
+
                     document.getElementById('temperature').textContent = data.temperature !== 'N/A' ? `${data.temperature} °C` : data.temperature;
                     document.getElementById('status').textContent = data.status === '1' ? '稼働中' : '停止中';
                     document.getElementById('count').textContent = data.count;
@@ -192,16 +201,19 @@
                     updateChart(data.graph_labels, data.graph_data);
 
                 } else {
-                    document.getElementById('temperature').textContent = 'エラー: ' + data.error;
-                    document.getElementById('status').textContent = '';
-                    document.getElementById('count').textContent = '';
+                    // HTTPエラー (400, 500など)
+                    const errorText = data.error || `HTTPエラー ${response.status}`;
+                    document.getElementById('temperature').textContent = 'エラー: ' + errorText;
+                    document.getElementById('status').textContent = '通信失敗';
+                    document.getElementById('count').textContent = 'N/A';
                     document.getElementById('lastUpdated').textContent = '';
                     updateChart([], []);
                 }
             } catch (error) {
+                // ネットワーク接続が確立できなかった場合
                 document.getElementById('temperature').textContent = '通信エラーが発生しました。';
-                document.getElementById('status').textContent = '';
-                document.getElementById('count').textContent = '';
+                document.getElementById('status').textContent = '接続不良';
+                document.getElementById('count').textContent = 'N/A';
                 document.getElementById('lastUpdated').textContent = '';
                 updateChart([], []);
             }
@@ -216,6 +228,7 @@
             
             // グラフのラベルを日本時間に変換
             const jstLabels = labels.map(timestampStr => {
+                // app.pyが返すのは時刻部分のみ（例: "07:10"）なので、ダミー日付でUTC時刻としてパース
                 const utcDate = new Date(`2000-01-01T${timestampStr}:00Z`);
                 const jstTime = utcDate.toLocaleString('ja-JP', {
                     hour: '2-digit',
@@ -244,10 +257,10 @@
                     maintainAspectRatio: false,
                     layout: {
                         padding: {
-                            left: 25,
-                            right: 25,
-                            top: 25,
-                            bottom: 25
+                            left: 10,
+                            right: 10,
+                            top: 10,
+                            bottom: 10
                         }
                     },
                     scales: {
