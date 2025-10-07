@@ -1,11 +1,14 @@
-# app.py
 from flask import Flask, request, jsonify, render_template
 import requests
 from datetime import datetime, timezone
 import logging
+import os # osモジュールを追加
 
-# ロギング設定はそのまま
-logging.basicConfig(filename='/home/kazuki21/solidlab_project/app.log', level=logging.INFO,
+# ロギング設定を修正: ファイル名のみを指定し、絶対パスの使用を避ける
+# Renderはカレントディレクトリ（/opt/render/project/src）にファイルを生成します。
+LOG_FILE_PATH = os.path.join(os.getcwd(), 'app.log') 
+
+logging.basicConfig(filename=LOG_FILE_PATH, level=logging.INFO,
                     format='%(asctime)s %(levelname)s:%(message)s')
 
 app = Flask(__name__)
