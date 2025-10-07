@@ -2,9 +2,15 @@
 from flask import Flask, request, jsonify, render_template
 import requests
 from datetime import datetime, timezone
+import logging
+
+# ロギング設定はそのまま
+logging.basicConfig(filename='/home/kazuki21/solidlab_project/app.log', level=logging.INFO,
+                    format='%(asctime)s %(levelname)s:%(message)s')
 
 app = Flask(__name__)
 
+# 機器番号とThingspeakの情報をマッピングする辞書
 device_mapping = {
     "device_A1": {
         "channel_id": "2984916",
@@ -22,9 +28,11 @@ def index():
 
 @app.route('/get_data', methods=['GET'])
 def get_data():
+    logging.info("Request received for get_data (COMMUNICATION TEST MODE).")
     device_id = request.args.get('device_id', '')
 
     if device_id not in device_mapping:
+        logging.error(f"Invalid device ID received: {device_id}")
         return jsonify({"error": "Invalid device ID"}), 404
 
     device_info = device_mapping[device_id]
@@ -32,69 +40,75 @@ def get_data():
     read_api_key = device_info["read_api_key"]
 
     try:
-        # 過去20件のデータを取得するように変更
+        logging.info(f"Starting request to ThingSpeak for channel {channel_id}.")
         url = f"https://api.thingspeak.com/channels/{channel_id}/feeds.json?api_key={read_api_key}&results=20"
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
         
-        feeds = data.get('feeds', [])
+        logging.info(f"Fetching URL: {url}")
         
-        # データが空の場合
-        if not feeds:
+        # ThingSpeakに接続を試みる
+        response = requests.get(url, timeout=10)
+        
+        # レスポンス受信直後にログを記録
+        logging.info(f"Received response with status code: {response.status_code}")
+        
+        # HTTPステータスコードを直接返す (通信テスト結果)
+        if response.status_code == 200:
+            # 正常な通信が確認できた場合、データを処理
+            data = response.json()
+            feeds = data.get('feeds', [])
+            
+            # --- 処理ロジック (簡略化) ---
+            if not feeds:
+                status_text = "データなし (通信OK)"
+            else:
+                status_text = f"通信成功 (コード: 200) - データ数: {len(feeds)}"
+                
+            latest_feed = feeds[-1] if feeds else {}
+            
+            # グラフ用のデータ処理 (簡略化)
+            graph_labels = [datetime.strptime(f['created_at'], "%Y-%m-%dT%H:%M:%SZ").strftime("%H:%M") for f in feeds if f.get('field1') is not None]
+            graph_data = [float(f['field1']) for f in feeds if f.get('field1') is not None]
+
+            return jsonify({
+                "temperature": latest_feed.get('field1', 'N/A'),
+                "status": status_text,
+                "count": latest_feed.get('field3', 'N/A'),
+                "graph_labels": graph_labels,
+                "graph_data": graph_data
+            })
+        else:
+            # 200以外のステータスコードが返された場合 (404, 403など)
             return jsonify({
                 "temperature": "N/A",
-                "status": "0", # データなしとして停止中と見なす
+                "status": f"通信失敗 (コード: {response.status_code})",
                 "count": "N/A",
                 "graph_labels": [],
                 "graph_data": []
             })
 
-        latest_feed = feeds[-1] # 最新のデータ
-        
-        # タイムスタンプをチェック
-        last_entry_time_str = latest_feed.get('created_at')
-        if last_entry_time_str:
-            last_entry_time = datetime.strptime(last_entry_time_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-            current_time = datetime.now(timezone.utc)
-            time_difference_seconds = (current_time - last_entry_time).total_seconds()
-            
-            # 最後の更新から1分（60秒）以上経過していたら、ステータスを停止中と判断
-            if time_difference_seconds > 60: 
-                return jsonify({
-                    "temperature": "N/A",
-                    "status": "0", # 停止中を示すために"0"を返す
-                    "count": latest_feed.get('field3', 'N/A'),
-                    "graph_labels": [],
-                    "graph_data": []
-                })
-
-        # グラフ用のデータ抽出
-        graph_labels = []
-        graph_temperature_data = []
-        
-        for feed in feeds:
-            timestamp = datetime.strptime(feed['created_at'], "%Y-%m-%dT%H:%M:%SZ").strftime("%H:%M") # 時刻のみ抽出
-            temp = feed.get('field1')
-            if temp is not None:
-                graph_labels.append(timestamp)
-                graph_temperature_data.append(float(temp))
-
-        field1_temp = latest_feed.get('field1', 'N/A')
-        field2_status = latest_feed.get('field2', 'N/A')
-        field3_count = latest_feed.get('field3', 'N/A')
-
+    except requests.exceptions.Timeout as e:
+        # タイムアウトエラー
+        logging.error(f"Thingspeak API request timed out for device {device_id}: {e}")
         return jsonify({
-            "temperature": field1_temp,
-            "status": field2_status,
-            "count": field3_count,
-            "graph_labels": graph_labels,
-            "graph_data": graph_temperature_data
+            "error": "TIMEOUT - ThingSpeakからの応答なし",
+            "temperature": "TIMEOUT",
+            "status": "通信タイムアウト",
+            "count": "N/A",
+            "graph_labels": [],
+            "graph_data": []
+        })
+    except requests.exceptions.RequestException as e:
+        # その他のネットワークエラー
+        logging.error(f"Failed to fetch data from ThingSpeak for device {device_id}: {e}")
+        return jsonify({
+            "error": f"NETWORK ERROR - {e}",
+            "temperature": "NETWORK ERROR",
+            "status": "ネットワークエラー",
+            "count": "N/A",
+            "graph_labels": [],
+            "graph_data": []
         })
 
-    except requests.exceptions.RequestException as e:
-        return jsonify({"error": f"Thingspeak API error: {e}"}), 500
-
 if __name__ == '__main__':
-
+    # RenderではGunicornが起動するため、pass のままにしておく
     pass
