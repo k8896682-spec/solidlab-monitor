@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>機器ステータス確認 - Solid Lab Style</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* Solid Lab風の基本的なスタイル */
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Sans', 'Meiryo', sans-serif;
+            color: #333;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .header {
+            text-align: left;
+            margin-bottom: 40px;
+            padding: 20px 0;
+            background-color: #fff;
+            border-bottom: 1px solid #eee;
+            display: block;
+        }
+        .logo {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #000;
+            margin-bottom: 5px;
+        }
+        .header h1 {
+            text-align: left;
+            color: #007bff;
+            font-size: 2.5em;
+            margin: 0;
+            font-weight: 500;
+        }
+        .container {
+            max-width: 960px;
+            margin: 30px auto;
+            padding: 30px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+        }
+        .input-section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        input[type="text"] {
+            padding: 12px 15px;
+            width: 70%;
+            max-width: 300px;
+            margin-right: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+        button {
+            padding: 12px 25px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #results {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        #results h2 {
+            color: #007bff;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        #results p {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+        #results strong {
+            color: #555;
+            min-width: 120px;
+            display: inline-block;
+        }
+        #lastUpdated {
+            font-size: 0.9em;
+            color: #777;
+            text-align: right;
+            margin-top: 15px;
+        }
+        .chart-container {
+            margin-top: 20px;
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+        }
+        .chart-container h3 {
+            text-align: center;
+            color: #007bff;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        canvas {
+            max-width: 100%;
+            height: 100% !important;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">Solid lab inc.</div>
+        <h1>機器稼働状況モニター</h1>
+    </div>
+
+    <div class="container">
+        <div class="input-section">
+            <input type="text" id="deviceIdInput" placeholder="機器番号を入力してください (例: device_A1)">
+            <button onclick="fetchData()">検索</button>
+        </div>
+
+        <div id="results">
+            <h2>現在のステータス</h2>
+            <p><strong>温度:</strong> <span id="temperature"></span></p>
+            <p><strong>稼働状態:</strong> <span id="status"></span></p>
+            <p><strong>電源投入回数:</strong> <span id="count"></span></p>
+            <p id="lastUpdated"></p>
+        </div>
+
+        <div class="chart-container">
+            <h3>過去の温度推移</h3>
+            <canvas id="temperatureChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const refreshInterval = 20000;
+        let currentDeviceId = '';
+        let intervalId;
+        let temperatureChart;
+
+        async function fetchData() {
+            const deviceId = document.getElementById('deviceIdInput').value;
+            
+            if (!deviceId) return;
+
+            if (deviceId !== currentDeviceId) {
+                currentDeviceId = deviceId;
+                if (intervalId) {
+                    clearInterval(intervalId);
+                }
+                intervalId = setInterval(updateUI, refreshInterval);
+                await updateUI();
+            } else {
+                await updateUI();
+            }
+        }
+
+        async function updateUI() {
+            document.getElementById('temperature').textContent = '取得中...';
+            document.getElementById('status').textContent = '';
+            document.getElementById('count').textContent = '';
+            document.getElementById('lastUpdated').textContent = '';
+
+            try {
+                const response = await fetch(`http://127.0.0.1:5000/get_data?device_id=${currentDeviceId}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('temperature').textContent = data.temperature !== 'N/A' ? `${data.temperature} °C` : data.temperature;
+                    document.getElementById('status').textContent = data.status === '1' ? '稼働中' : '停止中';
+                    document.getElementById('count').textContent = data.count;
+                    document.getElementById('lastUpdated').textContent = `最終更新: ${new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo' })}`;
+
+                    updateChart(data.graph_labels, data.graph_data);
+
+                } else {
+                    document.getElementById('temperature').textContent = 'エラー: ' + data.error;
+                    document.getElementById('status').textContent = '';
+                    document.getElementById('count').textContent = '';
+                    document.getElementById('lastUpdated').textContent = '';
+                    updateChart([], []);
+                }
+            } catch (error) {
+                document.getElementById('temperature').textContent = '通信エラーが発生しました。';
+                document.getElementById('status').textContent = '';
+                document.getElementById('count').textContent = '';
+                document.getElementById('lastUpdated').textContent = '';
+                updateChart([], []);
+            }
+        }
+
+        function updateChart(labels, data) {
+            const ctx = document.getElementById('temperatureChart').getContext('2d');
+
+            if (temperatureChart) {
+                temperatureChart.destroy();
+            }
+            
+            // グラフのラベルを日本時間に変換
+            const jstLabels = labels.map(timestampStr => {
+                const utcDate = new Date(`2000-01-01T${timestampStr}:00Z`);
+                const jstTime = utcDate.toLocaleString('ja-JP', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZone: 'Asia/Tokyo'
+                });
+                return jstTime;
+            });
+
+            temperatureChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: jstLabels,
+                    datasets: [{
+                        label: '温度 (°C)',
+                        data: data,
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: {
+                        padding: {
+                            left: 25,
+                            right: 25,
+                            top: 25,
+                            bottom: 25
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: '時刻'
+                            },
+                            ticks: {
+                                maxRotation: 0,
+                                minRotation: 0,
+                                autoSkip: true,
+                                maxTicksLimit: 10
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: '温度 (°C)'
+                            },
+                            min: 0,
+                            max: 300
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
