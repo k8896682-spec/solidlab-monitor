@@ -180,7 +180,7 @@
             document.getElementById('lastUpdated').textContent = '';
 
             try {
-                // *** ここを修正：相対URLに変更 ***
+                // 相対URLに変更
                 const response = await fetch(`/get_data?device_id=${currentDeviceId}`);
                 const data = await response.json();
                 
@@ -188,7 +188,7 @@
                     // エラーメッセージがある場合は、それを表示
                     if (data.error) {
                         document.getElementById('temperature').textContent = 'エラー: ' + data.error;
-                        document.getElementById('status').textContent = data.status === '0' ? '停止中' : 'N/A'; // ステータスもエラーに応じて表示
+                        document.getElementById('status').textContent = data.status === '0' ? '停止中' : 'N/A';
                         updateChart([], []);
                         return;
                     }
@@ -260,7 +260,7 @@
                             left: 10,
                             right: 10,
                             top: 10,
-                            bottom: 10
+                            bottom: 5 // *** ここを修正：下に飛び出すのを防ぐためパディングを減らす ***
                         }
                     },
                     scales: {
