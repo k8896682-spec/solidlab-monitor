@@ -139,7 +139,7 @@ def get_data():
         
         logging.info(f"Data processed successfully for device {device_id}. Status: {status_text}")
         return jsonify({
-            "temperature": "N/A (センサー破損)", 
+            "temperature": "N/A ", 
             "status": status_text,
             "count": latest_feed.get('field3', 'N/A'),
             "graph_labels": graph_labels,
