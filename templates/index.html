@@ -6,9 +6,8 @@
     <title>機器ステータス確認 - Solid Lab Style</title>
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
     <style>
-        /* CSSは変更なし */
+        /* CSSの基本設定 */
         body {
             font-family: 'Helvetica Neue', Arial, 'Hiragino Sans', 'Meiryo', sans-serif;
             color: #333;
@@ -39,23 +38,25 @@
             font-weight: 500;
         }
         .container {
-            max-width: 960px;
+            max-width: 1000px; /* 幅を広げてダッシュボード感を出す */
             margin: 30px auto;
             padding: 30px;
             background-color: #ffffff;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
-        .input-section {
+        /* ★★★ 入力・ボタンセクションのスタイリング ★★★ */
+        .control-section {
             display: flex;
-            justify-content: center;
-            align-items: flex-end;
+            justify-content: space-between; /* 左右に配置 */
+            align-items: center;
+            padding: 15px 0;
             margin-bottom: 30px;
-            gap: 40px;
+            border-bottom: 2px solid #007bff; /* 下部にキーカラーの線 */
         }
         .input-group {
-            flex-grow: 1;
-            max-width: 250px;
+            flex-grow: 0;
+            max-width: 300px;
         }
         .input-group label {
             display: block;
@@ -64,7 +65,7 @@
             margin-bottom: 5px;
         }
         input[type="text"] {
-            padding: 12px 15px;
+            padding: 10px 15px;
             width: 100%;
             border: 1px solid #ccc;
             border-radius: 5px;
@@ -73,76 +74,98 @@
         .button-container {
             display: flex;
             gap: 10px;
-            align-items: flex-end;
-            padding-top: 23px;
+            align-items: center;
         }
         button {
-            padding: 12px 25px;
-            background-color: #007bff;
+            padding: 10px 20px;
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            font-size: 1em;
+            font-size: 0.95em;
             transition: background-color 0.3s ease;
             white-space: nowrap;
         }
-        button:hover {
+        #btn-fetch {
+            background-color: #007bff;
+        }
+        #btn-fetch:hover {
             background-color: #0056b3;
         }
         #btn-reset {
-            background-color: #dc3545;
+            background-color: #6c757d; /* リセットは目立ちすぎないグレーに */
         }
         #btn-reset:hover {
-            background-color: #c82333;
+            background-color: #5a6268;
         }
-        #results {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
-        }
-        #results h2 {
-            color: #007bff;
-            font-size: 1.8em;
+        /* ★★★ ステータスカードのスタイリング ★★★ */
+        .status-cards-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 20px 0;
             margin-bottom: 20px;
-            text-align: center;
         }
-        #results p {
-            font-size: 1.1em;
-            margin-bottom: 10px;
+        .status-card {
+            flex: 1;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s ease;
         }
-        #results strong {
-            color: #555;
-            min-width: 140px;
-            display: inline-block;
+        .status-card:hover {
+            transform: translateY(-3px);
         }
-        #lastUpdated {
+        .status-card h3 {
             font-size: 0.9em;
-            color: #777;
-            text-align: right;
-            margin-top: 15px;
+            color: #007bff;
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+        }
+        .status-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: #333;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-value.online .status-indicator { background-color: #28a745; } /* 緑 */
+        .status-value.offline .status-indicator { background-color: #dc3545; } /* 赤 */
+        .status-value.unknown .status-indicator { background-color: #ffc107; } /* 黄色 */
+        /* ★★★ グラフセクションのスタイリング ★★★ */
+        .chart-section {
+            padding-top: 20px;
+            border-top: 1px dashed #ccc;
         }
         .chart-container {
             margin-top: 20px;
-            background-color: #f8f9fa;
-            padding: 60px;
+            background-color: #ffffff; /* グラフ背景は白に戻す */
+            padding: 25px; 
             border-radius: 8px;
-            border: 1px solid #eee;
-            max-width: 600px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            max-width: 800px; /* グラフ幅を調整 */
             margin-left: auto;
             margin-right: auto;
-            height: 350px;
+            height: 400px; /* グラフの高さを確保 */
         }
         .chart-container h3 {
-            text-align: center;
             color: #007bff;
-            margin-bottom: 20px;
-            font-weight: 500;
+            font-size: 1.5em;
+            margin-top: 0;
+            margin-bottom: 15px;
+            text-align: center;
         }
-        canvas {
-            max-width: 100%;
-            height: 100% !important;
-            display: block;
+        #lastUpdated {
+            font-size: 0.85em;
+            color: #777;
+            text-align: center;
+            margin-top: 15px;
         }
     </style>
 </head>
@@ -153,28 +176,48 @@
     </div>
 
     <div class="container">
-        <div class="input-section">
+        <div class="control-section">
             <div class="input-group">
-                <label for="deviceIdInput">機器番号 </label>
-                <input type="text" id="deviceIdInput" placeholder="例: device_B2">
+                <label for="deviceIdInput">機器番号</label>
+                <input type="text" id="deviceIdInput" placeholder="例: device_A1">
             </div>
             <div class="button-container">
-                <button onclick="fetchData()">データ取得</button>
-                <button id="btn-reset" onclick="resetCount()">数値リセット</button>
+                <button id="btn-fetch" onclick="fetchData()">データ取得</button>
+                <button id="btn-reset" onclick="resetCount()">初期設定リセット</button>
             </div>
         </div>
 
-        <div id="results">
-            <h2>現在のステータス</h2>
-            <p><strong>温度データ:</strong> <span id="temperature"></span></p>
-            <p><strong>稼働状態:</strong> <span id="status"></span></p>
-            <p><strong>電源投入回数 (リセット以降):</strong> <span id="count"></span></p>
-            <p id="lastUpdated"></p>
+        <div class="status-cards-container">
+            <div class="status-card">
+                <h3>稼働状態</h3>
+                <div id="status-card-value" class="status-value unknown">
+                    <span id="status-indicator" class="status-indicator"></span>
+                    <span id="status">---</span>
+                </div>
+            </div>
+
+            <div class="status-card">
+                <h3>電源投入回数 (リセット以降)</h3>
+                <div id="count-card-value" class="status-value">
+                    <span id="count">N/A</span>
+                </div>
+            </div>
+
+            <div class="status-card">
+                <h3>温度データ</h3>
+                <div id="temp-card-value" class="status-value">
+                    <span id="temperature">N/A</span>
+                </div>
+            </div>
         </div>
 
-        <div class="chart-container">
-            <h3>過去の稼働状態推移</h3>
-            <canvas id="temperatureChart"></canvas>
+        <div id="lastUpdated">データ未取得</div>
+
+        <div class="chart-section">
+            <div class="chart-container">
+                <h3>過去の稼働状態推移 </h3>
+                <canvas id="temperatureChart"></canvas>
+            </div>
         </div>
     </div>
 
@@ -215,9 +258,7 @@
             try {
                 const response = await fetch('/reset_count', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ device_id: deviceId })
                 });
 
@@ -234,11 +275,33 @@
             }
         }
 
+        function updateStatusDisplay(statusText, elementId = 'status-card-value') {
+            const card = document.getElementById(elementId);
+            const indicator = document.getElementById('status-indicator');
+            const statusSpan = document.getElementById('status');
+
+            // クラスをリセット
+            card.className = 'status-value';
+            indicator.style.backgroundColor = 'gray'; // デフォルト
+
+            if (statusText === '稼働中') {
+                card.classList.add('online');
+                indicator.style.backgroundColor = '#28a745';
+            } else if (statusText === '停止中') {
+                card.classList.add('offline');
+                indicator.style.backgroundColor = '#dc3545';
+            } else {
+                card.classList.add('unknown');
+                indicator.style.backgroundColor = '#ffc107';
+            }
+            statusSpan.textContent = statusText;
+        }
+
         async function updateUI() {
             document.getElementById('temperature').textContent = '取得中...';
-            document.getElementById('status').textContent = '';
-            document.getElementById('count').textContent = '';
-            document.getElementById('lastUpdated').textContent = '';
+            document.getElementById('count').textContent = '取得中...';
+            document.getElementById('lastUpdated').textContent = '更新中...';
+            updateStatusDisplay('取得中', 'status-card-value');
 
             try {
                 const response = await fetch(`/get_data?device_id=${currentDeviceId}`);
@@ -246,33 +309,39 @@
                 
                 if (response.ok) {
                     if (data.error) {
-                        document.getElementById('temperature').textContent = 'エラー: ' + data.error;
-                        document.getElementById('status').textContent = data.status === '接続不良' ? '接続不良' : 'N/A';
+                        document.getElementById('temperature').textContent = 'エラー';
                         document.getElementById('count').textContent = 'N/A';
-                        updateChart([], [], '稼働状態 (0 or 1)'); 
+                        updateStatusDisplay(data.status, 'status-card-value');
+                        updateChart([], [], '稼働状態 (0 or 1)');
+                        document.getElementById('lastUpdated').textContent = `エラー発生: ${data.error}`;
                         return;
                     }
 
-                    document.getElementById('temperature').textContent = data.temperature; 
-                    document.getElementById('status').textContent = data.status;
+                    // データの表示
+                    document.getElementById('temperature').textContent = data.temperature;
                     document.getElementById('count').textContent = data.count;
+                    updateStatusDisplay(data.status, 'status-card-value');
                     document.getElementById('lastUpdated').textContent = `最終更新: ${new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo' })}`;
 
+                    // グラフの更新
                     updateChart(data.graph_labels, data.graph_data, '稼働状態 (1=ON, 0=OFF)');
 
                 } else {
+                    // HTTPエラー (400, 500など)
                     const errorText = data.error || `HTTPエラー ${response.status}`;
-                    document.getElementById('temperature').textContent = 'エラー: ' + errorText;
-                    document.getElementById('status').textContent = '通信失敗';
+                    document.getElementById('temperature').textContent = 'エラー';
                     document.getElementById('count').textContent = 'N/A';
-                    document.getElementById('lastUpdated').textContent = '';
+                    updateStatusDisplay('通信失敗', 'status-card-value');
+                    document.getElementById('lastUpdated').textContent = `最終更新: 通信失敗`;
                     updateChart([], [], '稼働状態 (0 or 1)');
                 }
             } catch (error) {
-                document.getElementById('temperature').textContent = '通信エラーが発生しました。';
-                    document.getElementById('count').textContent = 'N/A';
-                    document.getElementById('lastUpdated').textContent = '';
-                    updateChart([], [], '稼働状態 (0 or 1)');
+                // ネットワーク接続が確立できなかった場合
+                document.getElementById('temperature').textContent = 'N/A';
+                document.getElementById('count').textContent = 'N/A';
+                updateStatusDisplay('接続不良', 'status-card-value');
+                document.getElementById('lastUpdated').textContent = `最終更新: 接続不良`;
+                updateChart([], [], '稼働状態 (0 or 1)');
             }
         }
 
@@ -313,10 +382,11 @@
                     maintainAspectRatio: false,
                     layout: {
                         padding: {
-                            left: 20, 
+                            left: 40, 
                             right: 20,
                             top: 15, 
-                            bottom: 30                         }
+                            bottom: 20 
+                        }
                     },
                     scales: {
                         x: {
