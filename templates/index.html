@@ -8,7 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
-        /* Solid Lab風の基本的なスタイル */
+        /* CSSは変更なし */
         body {
             font-family: 'Helvetica Neue', Arial, 'Hiragino Sans', 'Meiryo', sans-serif;
             color: #333;
@@ -49,17 +49,32 @@
         .input-section {
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-end;
             margin-bottom: 30px;
+            gap: 40px;
+        }
+        .input-group {
+            flex-grow: 1;
+            max-width: 250px;
+        }
+        .input-group label {
+            display: block;
+            font-size: 0.9em;
+            color: #555;
+            margin-bottom: 5px;
         }
         input[type="text"] {
             padding: 12px 15px;
-            width: 70%;
-            max-width: 300px;
-            margin-right: 15px;
+            width: 100%;
             border: 1px solid #ccc;
             border-radius: 5px;
             font-size: 1em;
+        }
+        .button-container {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+            padding-top: 23px;
         }
         button {
             padding: 12px 25px;
@@ -70,9 +85,16 @@
             cursor: pointer;
             font-size: 1em;
             transition: background-color 0.3s ease;
+            white-space: nowrap;
         }
         button:hover {
             background-color: #0056b3;
+        }
+        #btn-reset {
+            background-color: #dc3545;
+        }
+        #btn-reset:hover {
+            background-color: #c82333;
         }
         #results {
             margin-top: 30px;
@@ -91,7 +113,7 @@
         }
         #results strong {
             color: #555;
-            min-width: 120px;
+            min-width: 140px;
             display: inline-block;
         }
         #lastUpdated {
@@ -103,7 +125,7 @@
         .chart-container {
             margin-top: 20px;
             background-color: #f8f9fa;
-            padding: 20px;
+            padding: 60px;
             border-radius: 8px;
             border: 1px solid #eee;
             max-width: 600px;
@@ -132,20 +154,26 @@
 
     <div class="container">
         <div class="input-section">
-            <input type="text" id="deviceIdInput" placeholder="機器番号を入力してください (例: device_A1)">
-            <button onclick="fetchData()">検索</button>
+            <div class="input-group">
+                <label for="deviceIdInput">機器番号 </label>
+                <input type="text" id="deviceIdInput" placeholder="例: device_B2">
+            </div>
+            <div class="button-container">
+                <button onclick="fetchData()">データ取得</button>
+                <button id="btn-reset" onclick="resetCount()">数値リセット</button>
+            </div>
         </div>
 
         <div id="results">
             <h2>現在のステータス</h2>
-            <p><strong>温度:</strong> <span id="temperature"></span></p>
+            <p><strong>温度データ:</strong> <span id="temperature"></span></p>
             <p><strong>稼働状態:</strong> <span id="status"></span></p>
-            <p><strong>電源投入回数:</strong> <span id="count"></span></p>
+            <p><strong>電源投入回数 (リセット以降):</strong> <span id="count"></span></p>
             <p id="lastUpdated"></p>
         </div>
 
         <div class="chart-container">
-            <h3>過去の温度推移</h3>
+            <h3>過去の稼働状態推移 (1=稼働中, 0=停止中)</h3>
             <canvas id="temperatureChart"></canvas>
         </div>
     </div>
@@ -173,6 +201,39 @@
             }
         }
 
+        async function resetCount() {
+            const deviceId = document.getElementById('deviceIdInput').value;
+            if (!deviceId) {
+                alert('機器番号を入力してください。');
+                return;
+            }
+
+            if (!confirm(`機器 ${deviceId} の計測開始点をリセットします。過去のデータは表示されなくなります。よろしいですか？`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/reset_count', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ device_id: deviceId })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    alert(data.message);
+                    await updateUI(); 
+                } else {
+                    alert(`リセット失敗: ${data.error || '不明なエラー'}`);
+                }
+            } catch (error) {
+                alert('サーバーとの通信中にエラーが発生しました。');
+            }
+        }
+
         async function updateUI() {
             document.getElementById('temperature').textContent = '取得中...';
             document.getElementById('status').textContent = '';
@@ -180,55 +241,49 @@
             document.getElementById('lastUpdated').textContent = '';
 
             try {
-                // 相対URLに変更
                 const response = await fetch(`/get_data?device_id=${currentDeviceId}`);
                 const data = await response.json();
                 
                 if (response.ok) {
-                    // エラーメッセージがある場合は、それを表示
                     if (data.error) {
                         document.getElementById('temperature').textContent = 'エラー: ' + data.error;
-                        document.getElementById('status').textContent = data.status === '0' ? '停止中' : 'N/A';
-                        updateChart([], []);
+                        document.getElementById('status').textContent = data.status === '接続不良' ? '接続不良' : 'N/A';
+                        document.getElementById('count').textContent = 'N/A';
+                        updateChart([], [], '稼働状態 (0 or 1)'); 
                         return;
                     }
 
-                    document.getElementById('temperature').textContent = data.temperature !== 'N/A' ? `${data.temperature} °C` : data.temperature;
-                    document.getElementById('status').textContent = data.status === '1' ? '稼働中' : '停止中';
+                    document.getElementById('temperature').textContent = data.temperature; 
+                    document.getElementById('status').textContent = data.status;
                     document.getElementById('count').textContent = data.count;
                     document.getElementById('lastUpdated').textContent = `最終更新: ${new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo' })}`;
 
-                    updateChart(data.graph_labels, data.graph_data);
+                    updateChart(data.graph_labels, data.graph_data, '稼働状態 (1=ON, 0=OFF)');
 
                 } else {
-                    // HTTPエラー (400, 500など)
                     const errorText = data.error || `HTTPエラー ${response.status}`;
                     document.getElementById('temperature').textContent = 'エラー: ' + errorText;
                     document.getElementById('status').textContent = '通信失敗';
                     document.getElementById('count').textContent = 'N/A';
                     document.getElementById('lastUpdated').textContent = '';
-                    updateChart([], []);
+                    updateChart([], [], '稼働状態 (0 or 1)');
                 }
             } catch (error) {
-                // ネットワーク接続が確立できなかった場合
                 document.getElementById('temperature').textContent = '通信エラーが発生しました。';
-                document.getElementById('status').textContent = '接続不良';
-                document.getElementById('count').textContent = 'N/A';
-                document.getElementById('lastUpdated').textContent = '';
-                updateChart([], []);
+                    document.getElementById('count').textContent = 'N/A';
+                    document.getElementById('lastUpdated').textContent = '';
+                    updateChart([], [], '稼働状態 (0 or 1)');
             }
         }
 
-        function updateChart(labels, data) {
+        function updateChart(labels, data, chartTitle) {
             const ctx = document.getElementById('temperatureChart').getContext('2d');
 
             if (temperatureChart) {
                 temperatureChart.destroy();
             }
             
-            // グラフのラベルを日本時間に変換
             const jstLabels = labels.map(timestampStr => {
-                // app.pyが返すのは時刻部分のみ（例: "07:10"）なので、ダミー日付でUTC時刻としてパース
                 const utcDate = new Date(`2000-01-01T${timestampStr}:00Z`);
                 const jstTime = utcDate.toLocaleString('ja-JP', {
                     hour: '2-digit',
@@ -239,17 +294,18 @@
             });
 
             temperatureChart = new Chart(ctx, {
-                type: 'line',
+                type: 'line', 
                 data: {
                     labels: jstLabels,
                     datasets: [{
-                        label: '温度 (°C)',
+                        label: chartTitle,
                         data: data,
-                        borderColor: '#007bff',
-                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        borderColor: '#28a745', 
+                        backgroundColor: 'rgba(40, 167, 69, 0.2)',
                         borderWidth: 2,
                         fill: true,
-                        tension: 0.4
+                        tension: 0.4,
+                        stepped: true
                     }]
                 },
                 options: {
@@ -257,11 +313,10 @@
                     maintainAspectRatio: false,
                     layout: {
                         padding: {
-                            left: 10,
-                            right: 10,
-                            top: 15,
-                            bottom: 0 // *** ここを修正：下に飛び出すのを防ぐためパディングを減らす ***
-                        }
+                            left: 20, 
+                            right: 20,
+                            top: 15, 
+                            bottom: 30                         }
                     },
                     scales: {
                         x: {
@@ -281,10 +336,18 @@
                             display: true,
                             title: {
                                 display: true,
-                                text: '温度 (°C)'
+                                text: '稼働状態'
                             },
                             min: 0,
-                            max: 300
+                            max: 1.1,
+                            ticks: {
+                                stepSize: 1,
+                                callback: function(value) {
+                                    if (value === 1) return '稼働中 (1)';
+                                    if (value === 0) return '停止中 (0)';
+                                    return null;
+                                }
+                            }
                         }
                     },
                     plugins: {

@@ -1,42 +1,69 @@
-# 2025-10-08 UI FIX TEST COMMENT
+# app.py (リセット時刻基準でデータ自動フィルタリング)
 from flask import Flask, request, jsonify, render_template
 import requests
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import logging
-import os # osモジュールを追加
+import os
 
-# ロギング設定を修正: ファイル名のみを指定し、絶対パスの使用を避ける
-# Renderはカレントディレクトリ（/opt/render/project/src）にファイルを生成します。
+# ロギング設定
 LOG_FILE_PATH = os.path.join(os.getcwd(), 'app.log') 
-
 logging.basicConfig(filename=LOG_FILE_PATH, level=logging.INFO,
                     format='%(asctime)s %(levelname)s:%(message)s')
 
 app = Flask(__name__)
 
 # 機器番号とThingspeakの情報をマッピングする辞書
+# 注意: リセット機能には Write API Key が必要です
 device_mapping = {
     "device_A1": {
         "channel_id": "2984916",
-        "read_api_key": "H8F1OIM9U1NLQE3M"
+        "read_api_key": "H8F1OIM9U1NLQE3M",
+        "write_api_key": "U9Q595H3CM8DYM6O" # 🚨 書き込みキーを設定してください
     },
     "device_B2": {
         "channel_id": "2874643",
-        "read_api_key": "3L8GCQ6QQRJD9R2R"
+        "read_api_key": "3L8GCQ6QQRJD9R2R",
+        "write_api_key": "6EGN0UCAEN0NR9KG" # 🚨 書き込みキーを設定してください
     }
 }
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+# =========================================================
+# Field 3 リセットエンドポイント (初期設定用)
+# =========================================================
+@app.route('/reset_count', methods=['POST'])
+def reset_count():
+    device_id = request.json.get('device_id')
+    
+    if device_id not in device_mapping:
+        return jsonify({"success": False, "error": "Invalid device ID"}), 404
 
+    write_key = device_mapping[device_id].get("write_api_key")
+    if not write_key:
+        return jsonify({"success": False, "error": "Write API Key not configured"}), 500
+
+    try:
+        # Field 3 (電源投入回数) を 0 に設定してThingSpeakに送信
+        # このエントリが、データフィルタリングの開始点となる
+        url = f"https://api.thingspeak.com/update?api_key={write_key}&field3=0"
+        response = requests.post(url, timeout=10)
+        response.raise_for_status()
+
+        logging.info(f"Successfully sent reset signal (Field 3 = 0) for device: {device_id}")
+        return jsonify({"success": True, "message": "電源投入回数を0にリセットする信号を送信しました。次回更新分からデータがフィルタされます。"}), 200
+
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Failed to reset count for device {device_id}: {e}")
+        return jsonify({"success": False, "error": "ThingSpeakへの書き込みに失敗しました。"}), 500
+
+# =========================================================
+# データ取得エンドポイント (自動フィルタリングロジック)
+# =========================================================
 @app.route('/get_data', methods=['GET'])
 def get_data():
-    logging.info("Request received for get_data (COMMUNICATION TEST MODE).")
+    logging.info("Request received for get_data.")
     device_id = request.args.get('device_id', '')
-
+    
     if device_id not in device_mapping:
-        logging.error(f"Invalid device ID received: {device_id}")
         return jsonify({"error": "Invalid device ID"}), 404
 
     device_info = device_mapping[device_id]
@@ -44,75 +71,85 @@ def get_data():
     read_api_key = device_info["read_api_key"]
 
     try:
-        logging.info(f"Starting request to ThingSpeak for channel {channel_id}.")
-        url = f"https://api.thingspeak.com/channels/{channel_id}/feeds.json?api_key={read_api_key}&results=20"
+        # 過去のデータを多めに取得 (リセット時刻を見つけるため)
+        url = f"https://api.thingspeak.com/channels/{channel_id}/feeds.json?api_key={read_api_key}&results=300" 
         
-        logging.info(f"Fetching URL: {url}")
-        
-        # ThingSpeakに接続を試みる
         response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        data = response.json()
         
-        # レスポンス受信直後にログを記録
-        logging.info(f"Received response with status code: {response.status_code}")
+        feeds = data.get('feeds', [])
         
-        # HTTPステータスコードを直接返す (通信テスト結果)
-        if response.status_code == 200:
-            # 正常な通信が確認できた場合、データを処理
-            data = response.json()
-            feeds = data.get('feeds', [])
-            
-            # --- 処理ロジック (簡略化) ---
-            if not feeds:
-                status_text = "データなし (通信OK)"
-            else:
-                status_text = f"通信成功 (コード: 200) - データ数: {len(feeds)}"
-                
-            latest_feed = feeds[-1] if feeds else {}
-            
-            # グラフ用のデータ処理 (簡略化)
-            graph_labels = [datetime.strptime(f['created_at'], "%Y-%m-%dT%H:%M:%SZ").strftime("%H:%M") for f in feeds if f.get('field1') is not None]
-            graph_data = [float(f['field1']) for f in feeds if f.get('field1') is not None]
-
+        if not feeds:
             return jsonify({
-                "temperature": latest_feed.get('field1', 'N/A'),
-                "status": status_text,
-                "count": latest_feed.get('field3', 'N/A'),
-                "graph_labels": graph_labels,
-                "graph_data": graph_data
+                "temperature": "N/A", "status": "データなし", "count": "N/A",
+                "graph_labels": [], "graph_data": [], "error": "データが見つかりません。"
             })
+
+        # --- 1. Field 3 リセット後のデータを検索・フィルタリング ---
+        
+        # 過去のデータを降順にチェックし、Field 3が'0'になった最新のエントリを見つける
+        reset_time_str = None
+        # feedsを逆順にチェック (最新のデータから遡る)
+        for feed in reversed(feeds): 
+            if feed.get('field3') == '0':
+                reset_time_str = feed['created_at']
+                break
+        
+        filtered_feeds = feeds
+        
+        if reset_time_str:
+            # 時刻文字列を datetime オブジェクトに変換 (UTCとしてパース)
+            reset_time = datetime.strptime(reset_time_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+            # フィルタリングされたリストを作成
+            filtered_feeds = [
+                f for f in feeds 
+                if datetime.strptime(f['created_at'], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc) > reset_time
+            ]
+            logging.info(f"Data filtered using reset time: {reset_time_str}. {len(filtered_feeds)} records remaining.")
         else:
-            # 200以外のステータスコードが返された場合 (404, 403など)
-            return jsonify({
-                "temperature": "N/A",
-                "status": f"通信失敗 (コード: {response.status_code})",
-                "count": "N/A",
-                "graph_labels": [],
-                "graph_data": []
+            logging.info("No reset time found. Using all recent feeds.")
+
+        if not filtered_feeds:
+            # リセット後にまだ新しいデータが来ていない場合
+             return jsonify({
+                "temperature": "N/A", "status": "待機中", "count": "0",
+                "graph_labels": [], "graph_data": [], "error": "リセット後の新しいデータ待ちです。"
             })
 
-    except requests.exceptions.Timeout as e:
-        # タイムアウトエラー
-        logging.error(f"Thingspeak API request timed out for device {device_id}: {e}")
+
+        # --- 2. データの抽出と処理 ---
+        latest_feed = filtered_feeds[-1] # フィルタリング後の最新データ
+        
+        graph_labels = []
+        graph_status_data = []
+
+        for f in filtered_feeds:
+            if f.get('field2') is not None:
+                utc_time = datetime.strptime(f['created_at'], "%Y-%m-%dT%H:%M:%SZ")
+                graph_labels.append(utc_time.strftime("%H:%M")) 
+                graph_status_data.append(int(f['field2']))
+        
+        current_status = latest_feed.get('field2', '0')
+        status_text = '稼働中' if current_status == '1' else '停止中'
+        
         return jsonify({
-            "error": "TIMEOUT - ThingSpeakからの応答なし",
-            "temperature": "TIMEOUT",
-            "status": "通信タイムアウト",
-            "count": "N/A",
-            "graph_labels": [],
-            "graph_data": []
+            "temperature": "N/A (センサー破損)", 
+            "status": status_text,
+            "count": latest_feed.get('field3', 'N/A'),
+            "graph_labels": graph_labels,
+            "graph_data": graph_status_data
         })
+
     except requests.exceptions.RequestException as e:
-        # その他のネットワークエラー
-        logging.error(f"Failed to fetch data from ThingSpeak for device {device_id}: {e}")
         return jsonify({
-            "error": f"NETWORK ERROR - {e}",
-            "temperature": "NETWORK ERROR",
-            "status": "ネットワークエラー",
+            "error": "ThingSpeakとの通信に失敗しました。",
+            "temperature": "通信エラー",
+            "status": "接続不良",
             "count": "N/A",
             "graph_labels": [],
             "graph_data": []
-        })
+        }), 500
 
 if __name__ == '__main__':
-    # RenderではGunicornが起動するため、pass のままにしておく
     pass
