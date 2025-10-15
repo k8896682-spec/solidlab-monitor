@@ -1,4 +1,4 @@
-# app.py (リセット時刻基準でデータ自動フィルタリング)
+# app.py (リセット時刻基準でデータ自動フィルタリング)vv
 from flask import Flask, request, jsonify, render_template
 import requests
 from datetime import datetime, timezone, timedelta
