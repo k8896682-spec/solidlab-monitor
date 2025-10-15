@@ -1,19 +1,17 @@
-# app.py (リセット時刻基準でデータ自動フィルタリング)vv
 from flask import Flask, request, jsonify, render_template
 import requests
 from datetime import datetime, timezone, timedelta
 import logging
-import os
+import os # ★ osモジュールがインポートされているか確認 ★
 
-# ロギング設定
+# ロギング設定を修正: os.getcwd()でカレントディレクトリを取得し、
+# その中に app.log を作成するように変更します。
 LOG_FILE_PATH = os.path.join(os.getcwd(), 'app.log') 
 logging.basicConfig(filename=LOG_FILE_PATH, level=logging.INFO,
                     format='%(asctime)s %(levelname)s:%(message)s')
 
 app = Flask(__name__)
 
-# 機器番号とThingspeakの情報をマッピングする辞書
-# 注意: リセット機能には Write API Key が必要です
 device_mapping = {
     "device_A1": {
         "channel_id": "2984916",
