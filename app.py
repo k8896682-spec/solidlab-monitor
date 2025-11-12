@@ -1,4 +1,4 @@
-# app.py (リセット時刻基準でデータ自動フィルタリング)
+# app.py (リセット時刻基準でデータ自動フィルタリング - 温度グラフ対応版)
 from flask import Flask, request, jsonify, render_template
 import requests
 from datetime import datetime, timezone, timedelta
@@ -126,24 +126,32 @@ def get_data():
         latest_feed = filtered_feeds[-1] # フィルタリング後の最新データ
         
         graph_labels = []
-        graph_status_data = []
+        graph_temp_data = [] # ★温度データ用に変数名を変更★
 
         for f in filtered_feeds:
-            if f.get('field2') is not None:
+            # Field 1 (温度) のデータが存在する場合、グラフデータとして抽出
+            if f.get('field1') is not None:
                 utc_time = datetime.strptime(f['created_at'], "%Y-%m-%dT%H:%M:%SZ")
                 graph_labels.append(utc_time.strftime("%H:%M")) 
-                graph_status_data.append(int(f['field2']))
+                try:
+                    # 温度は float に変換
+                    graph_temp_data.append(float(f['field1']))
+                except ValueError:
+                    # データが無効な場合はスキップ
+                    pass 
         
         current_status = latest_feed.get('field2', '0')
         status_text = '稼働中' if current_status == '1' else '停止中'
         
-        logging.info(f"Data processed successfully for device {device_id}. Status: {status_text}")
+        latest_temperature = latest_feed.get('field1', 'N/A') # 最新の温度値
+        
+        logging.info(f"Data processed successfully for device {device_id}. Status: {status_text}, Temp records: {len(graph_temp_data)}")
         return jsonify({
-            "temperature": "N/A ", 
+            "temperature": latest_temperature, # 最新の温度値を返す
             "status": status_text,
             "count": latest_feed.get('field3', 'N/A'),
             "graph_labels": graph_labels,
-            "graph_data": graph_status_data
+            "graph_data": graph_temp_data # ★温度のグラフデータを返す★
         })
 
     except requests.exceptions.RequestException as e:

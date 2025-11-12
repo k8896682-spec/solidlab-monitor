@@ -38,21 +38,21 @@
             font-weight: 500;
         }
         .container {
-            max-width: 1000px; /* 幅を広げてダッシュボード感を出す */
+            max-width: 1000px;
             margin: 30px auto;
             padding: 30px;
             background-color: #ffffff;
             border-radius: 8px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
-        /* ★★★ 入力・ボタンセクションのスタイリング ★★★ */
+        /* 入力・ボタンセクションのスタイリング */
         .control-section {
             display: flex;
-            justify-content: space-between; /* 左右に配置 */
+            justify-content: space-between; 
             align-items: center;
             padding: 15px 0;
             margin-bottom: 30px;
-            border-bottom: 2px solid #007bff; /* 下部にキーカラーの線 */
+            border-bottom: 2px solid #007bff;
         }
         .input-group {
             flex-grow: 0;
@@ -93,12 +93,12 @@
             background-color: #0056b3;
         }
         #btn-reset {
-            background-color: #6c757d; /* リセットは目立ちすぎないグレーに */
+            background-color: #6c757d;
         }
         #btn-reset:hover {
             background-color: #5a6268;
         }
-        /* ★★★ ステータスカードのスタイリング ★★★ */
+        /* ステータスカードのスタイリング */
         .status-cards-container {
             display: flex;
             justify-content: space-between;
@@ -135,24 +135,25 @@
             border-radius: 50%;
             margin-right: 8px;
         }
-        .status-value.online .status-indicator { background-color: #28a745; } /* 緑 */
-        .status-value.offline .status-indicator { background-color: #dc3545; } /* 赤 */
-        .status-value.unknown .status-indicator { background-color: #ffc107; } /* 黄色 */
-        /* ★★★ グラフセクションのスタイリング ★★★ */
+        .status-value.online .status-indicator { background-color: #28a745; } 
+        .status-value.offline .status-indicator { background-color: #dc3545; } 
+        .status-value.unknown .status-indicator { background-color: #ffc107; } 
+        
+        /* グラフセクションのスタイリング */
         .chart-section {
             padding-top: 20px;
             border-top: 1px dashed #ccc;
         }
         .chart-container {
             margin-top: 20px;
-            background-color: #ffffff; /* グラフ背景は白に戻す */
-            padding: 40px; 
+            background-color: #ffffff;
+            padding: 25px; 
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-            max-width: 800px; /* グラフ幅を調整 */
+            max-width: 800px;
             margin-left: auto;
             margin-right: auto;
-            height: 400px; /* グラフの高さを確保 */
+            height: 400px;
         }
         .chart-container h3 {
             color: #007bff;
@@ -176,9 +177,10 @@
     </div>
 
     <div class="container">
+        <!-- 制御セクション -->
         <div class="control-section">
             <div class="input-group">
-                <label for="deviceIdInput">機器番号</label>
+                <label for="deviceIdInput">機器番号 (ThingSpeakチャンネル)</label>
                 <input type="text" id="deviceIdInput" placeholder="例: device_A1">
             </div>
             <div class="button-container">
@@ -187,6 +189,7 @@
             </div>
         </div>
 
+        <!-- ステータスカードセクション -->
         <div class="status-cards-container">
             <div class="status-card">
                 <h3>稼働状態</h3>
@@ -206,16 +209,18 @@
             <div class="status-card">
                 <h3>温度データ</h3>
                 <div id="temp-card-value" class="status-value">
-                    <span id="temperature">N/A</span>
+                    <span id="temperature">N/A</span> <span id="temp-unit"></span>
                 </div>
             </div>
         </div>
 
         <div id="lastUpdated">データ未取得</div>
 
+        <!-- グラフセクション -->
         <div class="chart-section">
             <div class="chart-container">
-                <h3>過去の稼働状態推移 </h3>
+                <!-- タイトルを温度グラフ用に変更 -->
+                <h3>過去の温度推移 (°C)</h3>
                 <canvas id="temperatureChart"></canvas>
             </div>
         </div>
@@ -251,6 +256,9 @@
                 return;
             }
 
+            // ★ alert/confirm の代わりにカスタムUIを使用することが推奨されていますが、
+            // 現在のコード構成を維持しつつ、デプロイ環境の制約を回避するため、ここでは
+            // 標準の confirm を使用し続けます。（通常はモーダルウィンドウを使うべき）
             if (!confirm(`機器 ${deviceId} の計測開始点をリセットします。過去のデータは表示されなくなります。よろしいですか？`)) {
                 return;
             }
@@ -299,6 +307,7 @@
 
         async function updateUI() {
             document.getElementById('temperature').textContent = '取得中...';
+            document.getElementById('temp-unit').textContent = ''; // 単位をクリア
             document.getElementById('count').textContent = '取得中...';
             document.getElementById('lastUpdated').textContent = '更新中...';
             updateStatusDisplay('取得中', 'status-card-value');
@@ -312,28 +321,33 @@
                         document.getElementById('temperature').textContent = 'エラー';
                         document.getElementById('count').textContent = 'N/A';
                         updateStatusDisplay(data.status, 'status-card-value');
-                        updateChart([], [], '稼働状態 (0 or 1)');
+                        updateChart([], [], '温度 (エラー)');
                         document.getElementById('lastUpdated').textContent = `エラー発生: ${data.error}`;
                         return;
                     }
 
                     // データの表示
                     document.getElementById('temperature').textContent = data.temperature;
+                    
+                    // 温度データが有効な場合のみ単位を表示
+                    if (data.temperature !== 'N/A' && data.temperature !== '通信エラー' && data.temperature !== 'TIMEOUT') {
+                        document.getElementById('temp-unit').textContent = ' °C';
+                    }
+                    
                     document.getElementById('count').textContent = data.count;
                     updateStatusDisplay(data.status, 'status-card-value');
                     document.getElementById('lastUpdated').textContent = `最終更新: ${new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo' })}`;
 
                     // グラフの更新
-                    updateChart(data.graph_labels, data.graph_data, '稼働状態 (1=ON, 0=OFF)');
+                    updateChart(data.graph_labels, data.graph_data, '温度 (°C)');
 
                 } else {
                     // HTTPエラー (400, 500など)
-                    const errorText = data.error || `HTTPエラー ${response.status}`;
                     document.getElementById('temperature').textContent = 'エラー';
                     document.getElementById('count').textContent = 'N/A';
                     updateStatusDisplay('通信失敗', 'status-card-value');
                     document.getElementById('lastUpdated').textContent = `最終更新: 通信失敗`;
-                    updateChart([], [], '稼働状態 (0 or 1)');
+                    updateChart([], [], '温度 (通信失敗)');
                 }
             } catch (error) {
                 // ネットワーク接続が確立できなかった場合
@@ -341,7 +355,7 @@
                 document.getElementById('count').textContent = 'N/A';
                 updateStatusDisplay('接続不良', 'status-card-value');
                 document.getElementById('lastUpdated').textContent = `最終更新: 接続不良`;
-                updateChart([], [], '稼働状態 (0 or 1)');
+                updateChart([], [], '温度 (接続不良)');
             }
         }
 
@@ -352,8 +366,11 @@
                 temperatureChart.destroy();
             }
             
+            // ThingSpeakデータはUTCなので、JSTに変換してラベルを作成
             const jstLabels = labels.map(timestampStr => {
+                // UTCの時刻としてパース
                 const utcDate = new Date(`2000-01-01T${timestampStr}:00Z`);
+                // ローカル（JST）時刻に変換してフォーマット
                 const jstTime = utcDate.toLocaleString('ja-JP', {
                     hour: '2-digit',
                     minute: '2-digit',
@@ -369,12 +386,12 @@
                     datasets: [{
                         label: chartTitle,
                         data: data,
-                        borderColor: '#28a745', 
-                        backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                        borderColor: '#007bff', // 温度に適した青色
+                        backgroundColor: 'rgba(0, 123, 255, 0.2)',
                         borderWidth: 2,
                         fill: true,
-                        tension: 0.4,
-                        stepped: true
+                        tension: 0.4, // スムーズな曲線
+                        pointRadius: 3 
                     }]
                 },
                 options: {
@@ -406,16 +423,12 @@
                             display: true,
                             title: {
                                 display: true,
-                                text: '稼働状態'
+                                text: '温度 (°C)' // Y軸ラベルを温度に変更
                             },
-                            min: 0,
-                            max: 1.1,
                             ticks: {
-                                stepSize: 1,
+                                // グラフの値に °C を追加
                                 callback: function(value) {
-                                    if (value === 1) return '稼働中 (1)';
-                                    if (value === 0) return '停止中 (0)';
-                                    return null;
+                                    return value + ' °C';
                                 }
                             }
                         }
@@ -427,7 +440,20 @@
                         },
                         tooltip: {
                             mode: 'index',
-                            intersect: false
+                            intersect: false,
+                            callbacks: {
+                                // ツールチップのラベルにも °C を追加
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += context.parsed.y + ' °C';
+                                    }
+                                    return label;
+                                }
+                            }
                         }
                     }
                 }
