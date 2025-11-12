@@ -1,4 +1,4 @@
-# app.py (リセット時刻基準でデータ自動フィルタリング - 温度グラフ対応版)
+# app.py (リセット時刻基準でデータ自動フィルタリング - 温度グラフ対応版test
 from flask import Flask, request, jsonify, render_template
 import requests
 from datetime import datetime, timezone, timedelta
