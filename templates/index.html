@@ -16,7 +16,7 @@
 
     <main class="container">
         <section class="map-section">
-            <div class="section-label">NATIONAL MONITORING MAP (AUTO-ZOOM ENABLED)</div>
+            <div class="section-label">NATIONAL MONITORING MAP (OPTIMIZED ZOOM)</div>
             <div id="map" class="japan-map-container"></div>
         </section>
 
@@ -25,7 +25,7 @@
             
             <div id="initial-message" class="detail-box active">
                 <h3>SELECT UNIT</h3>
-                <p>地図上のマーカーをクリックしてください。自動的にズームし、詳細データを表示します。</p>
+                <p>地図上のマーカーをクリックしてください。自動的に最適なレベルへズームし、詳細を表示します。</p>
             </div>
 
             <div id="detail-a" class="detail-box">
@@ -57,7 +57,7 @@
             const detailBoxes = document.querySelectorAll('.detail-box');
             let activeMarker = null;
 
-            // 1. 地図初期化 (日本全国を表示)
+            // 1. 地図初期化 (日本全体を表示)
             const map = L.map('map', {
                 zoomControl: true,
                 attributionControl: false
@@ -77,12 +77,13 @@
                     }).addTo(map);
                 });
 
+            // 3. 機器の緯度経度設定 (適宜変更してください)
             const deviceMapping = {
                 "detail-a": { lat: 36.064, lng: 136.223, channelId: "2984916", readKey: "H8F1OIM9U1NLQE3M" },
                 "detail-b": { lat: 35.900, lng: 136.150, channelId: "2874643", readKey: "3L8GCQ6QQRJD9R2R" }
             };
 
-            // 3. マーカー配置と自動ズームロジック
+            // 4. マーカー配置とアクション
             Object.keys(deviceMapping).forEach(targetId => {
                 const config = deviceMapping[targetId];
                 
@@ -92,25 +93,27 @@
                     color: "#ffffff",     
                     weight: 1,
                     opacity: 1,
-                    fillOpacity: 1
+                    fillOpacity: 1,
+                    pane: 'markerPane' 
                 }).addTo(map);
 
                 marker.on('click', async () => {
-                    // --- ズーム機能の追加 ---
-                    // クリックした地点を中心に、ズームレベルを12（街が見えるレベル）まで上げる
-                    map.flyTo([config.lat, config.lng], 12, {
+                    // --- 最適化されたズーム (レベル9) ---
+                    map.flyTo([config.lat, config.lng], 9, {
                         animate: true,
-                        duration: 1.5 // 1.5秒かけて移動
+                        duration: 1.2
                     });
 
-                    // マーカー強調の切り替え
+                    // 前のアクティブ状態をリセット
                     if(activeMarker) { 
                         activeMarker.setRadius(7); 
-                        activeMarker.setStyle({fillColor: "#ff0000"}); 
+                        activeMarker.setStyle({fillColor: "#ff0000", weight: 1}); 
                     }
+                    
+                    // 選択マーカーを黒にし、最前面へ
                     marker.setRadius(10); 
-                    marker.setStyle({fillColor: "#000000"});
-                    marker.bringToFront();
+                    marker.setStyle({fillColor: "#000000", weight: 2});
+                    marker.bringToFront(); // 最前面表示を確実にする
                     activeMarker = marker;
 
                     const targetDetail = document.getElementById(targetId);
