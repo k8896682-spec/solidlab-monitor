@@ -1,86 +1,91 @@
 :root {
     --color-black: #000000;
     --color-white: #ffffff;
-    --color-accent: #ff0000;
+    --color-gray-bg: #f8f9fa;
+    --color-border: #eeeeee;
 }
 
 body {
     font-family: 'Helvetica Neue', Arial, sans-serif;
     margin: 0;
-    background-color: #f8f9fa;
+    background-color: var(--color-gray-bg);
     color: var(--color-black);
     overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
 }
 
 header {
     background-color: var(--color-black);
     color: var(--color-white);
-    padding: 20px 40px;
+    padding: 25px 40px;
     border-bottom: 1px solid #333;
 }
 
     header h1 {
         margin: 0;
         font-size: 0.9rem;
-        letter-spacing: 0.2rem;
+        letter-spacing: 0.3rem;
         text-transform: uppercase;
     }
 
 .container {
     display: flex;
     max-width: 1600px;
-    margin: 20px auto;
+    margin: 30px auto;
     background-color: var(--color-white);
-    min-height: 80vh;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.05);
+    min-height: 800px;
+    box-shadow: 0 40px 100px rgba(0,0,0,0.08);
+    border-radius: 2px;
 }
 
 .section-label {
     font-size: 0.6rem;
     font-weight: 800;
     color: #ccc;
-    letter-spacing: 0.1rem;
-    margin-bottom: 20px;
+    letter-spacing: 0.15rem;
+    margin-bottom: 30px;
 }
 
-/* 地図エリア */
+/* 地図セクション */
 .map-section {
     flex: 3;
     padding: 40px;
-    border-right: 1px solid #eee;
+    border-right: 1px solid var(--color-border);
+    position: relative;
 }
 
 .japan-map-container {
     width: 100%;
-    height: 600px;
+    height: 650px;
     z-index: 1;
-    border: 1px solid #f0f0f0;
+    background: #fff;
 }
 
-/* 地図のグレーアウト設定 */
+/* 地図のモノトーン化 */
 .leaflet-container {
-    filter: grayscale(100%) contrast(1.1);
+    filter: grayscale(100%) contrast(0.9) brightness(1.1);
     background: #fff !important;
 }
 
-/* 詳細エリア */
+/* 詳細セクション */
 .content-section {
     flex: 2;
-    padding: 40px;
+    padding: 60px 40px;
     overflow: hidden;
+    position: relative;
 }
 
 .detail-box {
     display: none;
     opacity: 0;
-    transform: translateY(20px); /* 上にスライド */
-    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s ease;
+    transform: translateX(50px);
+    transition: transform 0.8s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.6s ease;
 }
 
     .detail-box.active {
         display: block;
         opacity: 1;
-        transform: translateY(0);
+        transform: translateX(0);
     }
 
 .unit-header h3 {
@@ -88,57 +93,68 @@ header {
     margin: 10px 0;
     font-weight: 900;
     line-height: 1;
+    letter-spacing: -0.1rem;
 }
 
 .status-tag {
     font-size: 0.6rem;
-    padding: 3px 8px;
-    font-weight: 800;
-    border: 1.5px solid #000;
+    padding: 4px 10px;
+    font-weight: 900;
+    border: 1.5px solid var(--color-black);
 }
 
 .online {
-    background: #000;
-    color: #fff;
+    background: var(--color-black);
+    color: var(--color-white);
 }
 
 .offline {
-    color: #aaa;
-    border-color: #aaa;
+    color: #bbb;
+    border-color: #bbb;
 }
 
 .data-grid {
-    margin-top: 40px;
+    margin-top: 50px;
 }
 
     .data-grid p {
         display: flex;
         justify-content: space-between;
-        padding: 15px 0;
+        padding: 18px 0;
         border-bottom: 1px solid #f2f2f2;
         margin: 0;
         font-size: 0.9rem;
     }
 
         .data-grid p strong {
-            color: #999;
+            color: #aaa;
             font-weight: 400;
             text-transform: uppercase;
+            font-size: 0.75rem;
         }
 
-/* レスポンシブ */
+/* スマホ対応 */
 @media (max-width: 1024px) {
     .container {
         flex-direction: column;
+        margin: 0;
     }
 
     .map-section {
         border-right: none;
-        border-bottom: 1px solid #eee;
+        border-bottom: 1px solid var(--color-border);
         padding: 20px;
     }
 
     .japan-map-container {
         height: 400px;
+    }
+
+    .content-section {
+        padding: 40px 20px;
+    }
+
+    .unit-header h3 {
+        font-size: 2.5rem;
     }
 }
