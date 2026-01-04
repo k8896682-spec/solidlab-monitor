@@ -99,9 +99,9 @@
 
                 marker.on('click', async () => {
                     // --- 最適化されたズーム (レベル9) ---
-                    map.flyTo([config.lat, config.lng], 9, {
+                    map.flyTo([config.lat, config.lng], 7, {
                         animate: true,
-                        duration: 1.2
+                        duration: 1.0
                     });
 
                     // 前のアクティブ状態をリセット
