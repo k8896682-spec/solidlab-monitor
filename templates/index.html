@@ -16,17 +16,16 @@
 
     <main class="container">
         <section class="map-section">
-            <div class="section-label">MAP VIEW / NATIONAL ARCHIVE</div>
+            <div class="section-label">NATIONAL MONITORING MAP</div>
             <div id="map" class="japan-map-container"></div>
-            <svg id="connecting-rods-svg"></svg>
-        </section>
+            </section>
 
         <section class="content-section">
-            <div class="section-label">UNIT DETAILS</div>
+            <div class="section-label">UNIT STATUS</div>
             
             <div id="initial-message" class="detail-box active">
                 <h3>SELECT UNIT</h3>
-                <p>地図上の赤マーカーを選択してください。ThingSpeakの最新データがスライド表示されます。</p>
+                <p>地図上の赤いマーカーをクリックして、詳細情報を確認してください。</p>
             </div>
 
             <div id="detail-a" class="detail-box">
@@ -55,53 +54,55 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const svg = document.getElementById('connecting-rods-svg');
             const detailBoxes = document.querySelectorAll('.detail-box');
-            const mapContainer = document.getElementById('map');
+            let activeMarker = null;
 
-            // 1. 地図の初期化 (日本全体が見える設定)
+            // 1. 地図初期化
             const map = L.map('map', {
                 zoomControl: true,
                 attributionControl: false
-            }).setView([37.5, 137.5], 5); // 全国表示
+            }).setView([37.5, 137.5], 5);
 
-            // 2. GeoJSONの読み込み
+            // 2. GeoJSON読み込み
             fetch("{{ url_for('static', filename='japan.geojson') }}")
                 .then(res => res.json())
                 .then(geoData => {
                     L.geoJSON(geoData, {
                         style: {
-                            color: "#333",
-                            weight: 0.8,
+                            color: "#000",
+                            weight: 0.5,
                             fillColor: "#f0f0f0",
                             fillOpacity: 1
                         }
                     }).addTo(map);
                 });
 
-            // 3. 機器の緯度経度 & ThingSpeak設定
             const deviceMapping = {
                 "detail-a": { lat: 36.064, lng: 136.223, channelId: "2984916", readKey: "H8F1OIM9U1NLQE3M" },
                 "detail-b": { lat: 35.900, lng: 136.150, channelId: "2874643", readKey: "3L8GCQ6QQRJD9R2R" }
             };
 
-            // 4. マーカー配置とクリックイベント
+            // 3. マーカー配置
             Object.keys(deviceMapping).forEach(targetId => {
                 const config = deviceMapping[targetId];
                 
+                // 塗りつぶしの色(fillColor)を赤に固定
                 const marker = L.circleMarker([config.lat, config.lng], {
-                    radius: 9,
-                    fillColor: "#ff0000",
-                    color: "#ffffff",
-                    weight: 2,
+                    radius: 10,
+                    fillColor: "#ff0000", // 鮮やかな赤
+                    color: "#000",        // 縁取りは黒
+                    weight: 1,
                     opacity: 1,
-                    fillOpacity: 1,
-                    pane: 'markerPane'
+                    fillOpacity: 1
                 }).addTo(map);
 
-                marker.bringToFront();
+                marker.on('click', async () => {
+                    // クリックされたマーカーを強調
+                    if(activeMarker) { activeMarker.setRadius(10); activeMarker.setStyle({fillColor: "#ff0000"}); }
+                    marker.setRadius(15); // 大きくする
+                    marker.setStyle({fillColor: "#000"}); // 選択中は色を変えて視認性を上げる
+                    activeMarker = marker;
 
-                marker.on('click', async (e) => {
                     const targetDetail = document.getElementById(targetId);
 
                     detailBoxes.forEach(box => {
@@ -109,7 +110,6 @@
                         box.classList.remove('active');
                         box.style.display = 'none';
                     });
-                    svg.innerHTML = '';
 
                     await updateDeviceData(targetId, config);
 
@@ -119,9 +119,8 @@
                             targetDetail.style.transition = '';
                             requestAnimationFrame(() => {
                                 targetDetail.classList.add('active');
-                                drawConnectingRods(e.containerPoint, targetDetail);
                             });
-                        }, 200);
+                        }, 100);
                     }
                 });
             });
@@ -144,26 +143,6 @@
                     box.querySelector('.val-temp').textContent = (latest.field1 ? parseFloat(latest.field1).toFixed(1) : "--.-") + "℃";
                 } catch (e) { console.error(e); }
             }
-
-            function drawConnectingRods(point, activeDetail) {
-                svg.innerHTML = '';
-                const mapRect = mapContainer.getBoundingClientRect();
-                const detailRect = activeDetail.getBoundingClientRect();
-                const startX = point.x;
-                const startY = point.y;
-                const isMobile = window.innerWidth <= 1024;
-                const endX = isMobile ? startX : (detailRect.left - mapRect.left);
-                const endY = isMobile ? (detailRect.top - mapRect.top) : (detailRect.top + 50 - mapRect.top);
-
-                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                line.setAttribute('x1', startX); line.setAttribute('y1', startY);
-                line.setAttribute('x2', endX); line.setAttribute('y2', endY);
-                line.setAttribute('stroke', '#ff0000'); line.setAttribute('stroke-width', '1.5');
-                line.setAttribute('stroke-dasharray', '4, 2');
-                svg.appendChild(line);
-            }
-
-            map.on('move zoomstart', () => svg.innerHTML = '');
         });
     </script>
 </body>
