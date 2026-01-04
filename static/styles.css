@@ -1,0 +1,151 @@
+:root {
+    --color-black: #000000;
+    --color-white: #ffffff;
+    --color-accent: #ff0000;
+}
+
+body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    margin: 0;
+    background-color: #f2f2f2;
+    color: var(--color-black);
+}
+
+header {
+    background-color: #000;
+    color: #fff;
+    padding: 20px;
+}
+
+    header h1 {
+        font-size: 0.8rem;
+        letter-spacing: 0.2rem;
+        text-transform: uppercase;
+        margin: 0;
+    }
+
+/* 共通：コンテナ設定 */
+.container {
+    display: flex;
+    max-width: 1400px;
+    margin: 20px auto;
+    background: #fff;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+}
+
+/* PC：横並び */
+.map-section {
+    flex: 3;
+    padding: 40px;
+    border-right: 1px solid #eee;
+    position: relative;
+}
+
+.content-section {
+    flex: 2;
+    padding: 40px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* スマホ：縦並びへの切り替え */
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+        margin: 0;
+    }
+
+    .map-section {
+        border-right: none;
+        border-bottom: 1px solid #eee;
+        padding: 20px;
+    }
+
+    .content-section {
+        padding: 30px 20px;
+        min-height: 400px;
+    }
+
+    .japan-map-container {
+        height: 350px !important;
+    }
+}
+
+.japan-map-container {
+    position: relative;
+    width: 100%;
+    height: 500px;
+}
+
+.japan-map-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: grayscale(1);
+    opacity: 0.3;
+}
+
+.equipment-marker {
+    position: absolute;
+    width: 15px;
+    height: 15px;
+    background: var(--color-accent);
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 10;
+}
+
+/* スライドイン設定 */
+.detail-box {
+    display: none;
+    opacity: 0;
+    transform: translateX(60px);
+    transition: transform 1.2s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.8s ease-out;
+}
+
+    .detail-box.active {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+.unit-header h3 {
+    font-size: 3rem;
+    margin: 0;
+    font-weight: 900;
+}
+
+.status-tag {
+    font-size: 0.6rem;
+    padding: 2px 8px;
+    border: 1.5px solid #000;
+    margin-bottom: 10px;
+    display: inline-block;
+}
+
+.online {
+    background: #000;
+    color: #fff;
+}
+
+.data-grid p {
+    display: flex;
+    justify-content: space-between;
+    padding: 15px 0;
+    border-bottom: 1px solid #eee;
+    font-size: 0.9rem;
+}
+
+    .data-grid p strong {
+        color: #888;
+        font-weight: 400;
+    }
+
+#connecting-rods-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+}
