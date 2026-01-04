@@ -90,12 +90,12 @@
                     map.flyTo([config.lat, config.lng], targetZoom, { animate: true, duration: 0.8 });
 
                     if(activeMarker) { 
-                        activeMarker.setRadius(4); 
+                        activeMarker.setRadius(5); 
                         activeMarker.setStyle({fillColor: "#ff0000", weight: 1}); 
                     }
 
                     setTimeout(() => {
-                        marker.setRadius(6); 
+                        marker.setRadius(8); 
                         marker.setStyle({fillColor: "#000000", weight: 2});
                         marker.bringToFront(); 
                         activeMarker = marker;
