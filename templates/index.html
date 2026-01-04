@@ -7,6 +7,12 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        /* マーカーの変形アニメーションを無効化し、サイズ変更時の違和感を消す */
+        .leaflet-interactive {
+            transition: none !important;
+        }
+    </style>
 </head>
 <body>
 
@@ -84,19 +90,31 @@
                 marker.on('click', async () => {
                     // ★ズーム設定：現在のズームを維持。俯瞰時はLv8まで寄る
                     const targetZoom = map.getZoom() < 7 ? 8 : map.getZoom();
+                    
+                    // A. 移動を開始（この時点ではサイズ変更しない）
                     map.flyTo([config.lat, config.lng], targetZoom, { animate: true, duration: 0.8 });
 
+                    // B. 前の選択マーカーをリセット
                     if(activeMarker) { 
-                        activeMarker.setRadius(7); activeMarker.setStyle({fillColor: "#ff0000", weight: 1}); 
+                        activeMarker.setRadius(7); 
+                        activeMarker.setStyle({fillColor: "#ff0000", weight: 1}); 
                     }
-                    marker.setRadius(9); marker.setStyle({fillColor: "#000000", weight: 2});
-                    marker.bringToFront(); activeMarker = marker;
 
+                    // C. 移動完了に合わせてマーカーを黒く大きくする（0.8秒後）
+                    setTimeout(() => {
+                        marker.setRadius(9); 
+                        marker.setStyle({fillColor: "#000000", weight: 2});
+                        marker.bringToFront(); 
+                        activeMarker = marker;
+                    }, 800);
+
+                    // --- UIパネルの表示制御 ---
                     const targetDetail = document.getElementById(targetId);
                     detailBoxes.forEach(box => {
                         box.style.transition = 'none'; box.classList.remove('active'); box.style.display = 'none';
                     });
 
+                    // APIデータの取得（非同期）
                     await updateDeviceData(targetId, config);
 
                     if (targetDetail) {
