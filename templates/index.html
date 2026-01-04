@@ -82,7 +82,7 @@
             Object.keys(deviceMapping).forEach(targetId => {
                 const config = deviceMapping[targetId];
                 const marker = L.circleMarker([config.lat, config.lng], {
-                    radius: 4, fillColor: "#ff0000", color: "#ffffff", weight: 1, opacity: 1, fillOpacity: 1, pane: 'markerPane' 
+                    radius: 6, fillColor: "#ff0000", color: "#ffffff", weight: 1, opacity: 1, fillOpacity: 1, pane: 'markerPane' 
                 }).addTo(map);
 
                 marker.on('click', async () => {
