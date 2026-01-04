@@ -16,7 +16,7 @@
 
     <main class="container">
         <section class="map-section">
-            <div class="section-label">NATIONAL MONITORING MAP (OPTIMIZED ZOOM)</div>
+            <div class="section-label">NATIONAL MONITORING MAP</div>
             <div id="map" class="japan-map-container"></div>
         </section>
 
@@ -25,11 +25,11 @@
             
             <div id="initial-message" class="detail-box active">
                 <h3>SELECT UNIT</h3>
-                <p>地図上のマーカーをクリックしてください。自動的に最適なレベルへズームし、詳細を表示します。</p>
+                <p>地図上のマーカーをクリックしてください。現在のズームを維持して詳細を表示します。</p>
             </div>
 
             <div id="detail-a" class="detail-box">
-                <div class="unit-header"><span class="status-tag">LOADING...</span><h3>UNIT 01A</h3></div>
+                <div class="unit-header"><span class="status-tag">LOADING...</span><h3>UNIT 1</h3></div>
                 <div class="data-grid">
                     <p><strong>拠点</strong> <span>tonakan1</span></p>
                     <p><strong>場所</strong> <span>福井県福井市</span></p>
@@ -40,10 +40,10 @@
             </div>
 
             <div id="detail-b" class="detail-box">
-                <div class="unit-header"><span class="status-tag">LOADING...</span><h3>UNIT 02B</h3></div>
+                <div class="unit-header"><span class="status-tag">LOADING...</span><h3>UNIT 2</h3></div>
                 <div class="data-grid">
                     <p><strong>拠点</strong> <span>tonakan2</span></p>
-                    <p><strong>場所</strong> <span>福井県福井市</span></p>
+                    <p><strong>場所</strong> <span>福井県小浜市</span></p>
                     <p><strong>稼働状態</strong> <span class="val-status">--</span></p>
                     <p><strong>電源投入回数</strong> <span class="val-count">--</span></p>
                     <p><strong>温度データ</strong> <span class="val-temp">--.-℃</span></p>
@@ -57,7 +57,7 @@
             const detailBoxes = document.querySelectorAll('.detail-box');
             let activeMarker = null;
 
-            // 1. 地図初期化 (日本全体を表示)
+            // 1. 地図初期化 (日本全体)
             const map = L.map('map', {
                 zoomControl: true,
                 attributionControl: false
@@ -68,22 +68,16 @@
                 .then(res => res.json())
                 .then(geoData => {
                     L.geoJSON(geoData, {
-                        style: {
-                            color: "#000",
-                            weight: 0.5,
-                            fillColor: "#f0f0f0",
-                            fillOpacity: 1
-                        }
+                        style: { color: "#000", weight: 0.5, fillColor: "#f0f0f0", fillOpacity: 1 }
                     }).addTo(map);
                 });
 
-            // 3. 機器の緯度経度設定 (適宜変更してください)
             const deviceMapping = {
                 "detail-a": { lat: 36.064, lng: 136.223, channelId: "2984916", readKey: "H8F1OIM9U1NLQE3M" },
-                "detail-b": { lat: 35.900, lng: 136.150, channelId: "2874643", readKey: "3L8GCQ6QQRJD9R2R" }
+                "detail-b": { lat: 35.495, lng: 135.746, channelId: "2874643", readKey: "3L8GCQ6QQRJD9R2R" }
             };
 
-            // 4. マーカー配置とアクション
+            // 3. マーカー配置とアクション
             Object.keys(deviceMapping).forEach(targetId => {
                 const config = deviceMapping[targetId];
                 
@@ -98,22 +92,17 @@
                 }).addTo(map);
 
                 marker.on('click', async () => {
-                    // --- 最適化されたズーム (レベル9) ---
-                    map.flyTo([config.lat, config.lng], 7, {
-                        animate: true,
-                        duration: 1.0
-                    });
+                    // ★ズーム挙動の改善: 現在のズームを維持、俯瞰なら少し寄る
+                    const targetZoom = map.getZoom() < 7 ? 8 : map.getZoom();
+                    map.flyTo([config.lat, config.lng], targetZoom, { animate: true, duration: 0.8 });
 
-                    // 前のアクティブ状態をリセット
                     if(activeMarker) { 
                         activeMarker.setRadius(7); 
                         activeMarker.setStyle({fillColor: "#ff0000", weight: 1}); 
                     }
-                    
-                    // 選択マーカーを黒にし、最前面へ
-                    marker.setRadius(10); 
+                    marker.setRadius(9); 
                     marker.setStyle({fillColor: "#000000", weight: 2});
-                    marker.bringToFront(); // 最前面表示を確実にする
+                    marker.bringToFront(); 
                     activeMarker = marker;
 
                     const targetDetail = document.getElementById(targetId);
@@ -148,8 +137,10 @@
 
                     const isOnline = latest.field2 === "1";
                     const statusTag = box.querySelector('.status-tag');
+                    
                     statusTag.textContent = isOnline ? "ONLINE" : "OFFLINE";
                     statusTag.className = `status-tag ${isOnline ? 'online' : 'offline'}`;
+                    
                     box.querySelector('.val-status').textContent = isOnline ? "稼働中" : "停止中";
                     box.querySelector('.val-count').textContent = latest.field3 || "0";
                     box.querySelector('.val-temp').textContent = (latest.field1 ? parseFloat(latest.field1).toFixed(1) : "--.-") + "℃";
