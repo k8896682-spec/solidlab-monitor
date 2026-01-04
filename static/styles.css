@@ -1,5 +1,3 @@
-/* --- Solid Lab inc. IMM Tracking System | GeoJSON Optimized CSS --- */
-
 :root {
     --color-black: #000000;
     --color-white: #ffffff;
@@ -9,7 +7,7 @@
 }
 
 body {
-    font-family: 'Inter', 'Helvetica Neue', Arial, "Hiragino Kaku Gothic ProN", sans-serif;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
     margin: 0;
     background-color: var(--color-gray-bg);
     color: var(--color-black);
@@ -20,27 +18,24 @@ body {
 header {
     background-color: var(--color-black);
     color: var(--color-white);
-    padding: 25px 50px;
+    padding: 25px 40px;
     border-bottom: 1px solid #333;
 }
 
     header h1 {
         margin: 0;
         font-size: 0.9rem;
-        letter-spacing: 0.35rem;
-        font-weight: 800;
+        letter-spacing: 0.3rem;
         text-transform: uppercase;
     }
 
         header h1 span {
-            font-weight: 300;
+            font-weight: 200;
             font-size: 0.7rem;
-            margin-left: 20px;
             opacity: 0.4;
-            letter-spacing: 0.1rem;
+            margin-left: 20px;
         }
 
-/* メインコンテナ */
 .container {
     display: flex;
     max-width: 1600px;
@@ -57,36 +52,28 @@ header {
     color: #bbb;
     letter-spacing: 0.2rem;
     margin-bottom: 30px;
-    text-transform: uppercase;
 }
 
-/* --- 左側：地図エリア --- */
+/* --- 地図エリア --- */
 .map-section {
     flex: 3;
     padding: 50px;
     border-right: 1px solid var(--color-border);
     position: relative;
-    display: flex;
-    flex-direction: column;
 }
 
-/* Leaflet用地図コンテナ */
 .japan-map-container {
     position: relative;
     width: 100%;
-    flex-grow: 1; /* 親要素の高さに合わせる */
-    min-height: 600px;
-    border: 1px solid #f0f0f0;
-    z-index: 1; /* 地図本体は下層 */
+    height: 600px;
+    z-index: 1;
 }
 
-/* 地図自体の白黒化 */
 .leaflet-container {
     background-color: #fff !important;
     filter: grayscale(100%) contrast(1.1);
 }
 
-/* 伸ばし棒用SVGレイヤー（地図の真上に重ねる） */
 #connecting-rods-svg {
     position: absolute;
     top: 0;
@@ -94,23 +81,21 @@ header {
     width: 100%;
     height: 100%;
     pointer-events: none;
-    z-index: 1000; /* Leafletのマーカーより上に配置 */
+    z-index: 1001; /* マーカーより上に表示 */
 }
 
-/* --- 右側：詳細エリア (スライドイン) --- */
+/* --- 詳細エリア --- */
 .content-section {
     flex: 2;
     padding: 60px 50px;
     overflow: hidden;
     position: relative;
-    background-color: var(--color-white);
 }
 
 .detail-box {
     display: none;
     opacity: 0;
-    transform: translateX(80px); /* 80px右からスライド開始 */
-    /* 1.0秒かけてゆったりと、最初は速く最後は優雅に止まる動き */
+    transform: translateX(80px);
     transition: transform 1.0s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.8s ease-out;
 }
 
@@ -121,20 +106,17 @@ header {
     }
 
 .unit-header h3 {
-    font-size: 4rem;
-    margin: 10px 0 0 0;
+    font-size: 3.5rem;
+    margin: 10px 0;
     font-weight: 900;
     line-height: 1;
-    letter-spacing: -0.1rem;
 }
 
-/* ステータスタグ */
 .status-tag {
     font-size: 0.6rem;
     padding: 4px 10px;
     font-weight: 900;
     border: 1.5px solid var(--color-black);
-    display: inline-block;
 }
 
 .online {
@@ -147,38 +129,31 @@ header {
     border-color: #bbb;
 }
 
-/* データ表示用グリッド */
 .data-grid {
-    margin-top: 60px;
+    margin-top: 50px;
 }
 
     .data-grid p {
         display: flex;
         justify-content: space-between;
-        padding: 20px 0;
+        padding: 18px 0;
         border-bottom: 1px solid #f2f2f2;
         margin: 0;
         font-size: 0.9rem;
     }
 
         .data-grid p strong {
-            color: #aaa;
+            color: #bbb;
             font-weight: 400;
             text-transform: uppercase;
-            font-size: 0.7rem;
-            letter-spacing: 0.1rem;
+            font-size: 0.75rem;
         }
 
-        .data-grid p span {
-            font-weight: 600;
-        }
-
-/* --- レスポンシブ (スマホ対応) --- */
+/* スマホ対応 */
 @media (max-width: 1024px) {
     .container {
         flex-direction: column;
         margin: 0;
-        min-height: auto;
     }
 
     .map-section {
@@ -188,7 +163,7 @@ header {
     }
 
     .japan-map-container {
-        min-height: 400px;
+        height: 400px;
     }
 
     .content-section {

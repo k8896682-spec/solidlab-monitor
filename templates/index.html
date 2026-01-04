@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Solid Lab inc. | IMM Tracking System</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 
@@ -16,8 +16,8 @@
 
     <main class="container">
         <section class="map-section">
-            <div class="section-label">MAP VIEW (GEO-LOCATION)</div>
-            <div id="map" class="japan-map-container" style="background: #fff; border: 1px solid #eee;"></div>
+            <div class="section-label">MAP VIEW / NATIONAL ARCHIVE</div>
+            <div id="map" class="japan-map-container"></div>
             <svg id="connecting-rods-svg"></svg>
         </section>
 
@@ -26,7 +26,7 @@
             
             <div id="initial-message" class="detail-box active">
                 <h3>SELECT UNIT</h3>
-                <p>地図上のマーカーをクリックしてください。緯度経度に基づき、正確な位置からデータを取得します。</p>
+                <p>地図上の赤マーカーを選択してください。ThingSpeakの最新データがスライド表示されます。</p>
             </div>
 
             <div id="detail-a" class="detail-box">
@@ -57,50 +57,53 @@
         document.addEventListener('DOMContentLoaded', () => {
             const svg = document.getElementById('connecting-rods-svg');
             const detailBoxes = document.querySelectorAll('.detail-box');
-            const contentSection = document.querySelector('.content-section');
+            const mapContainer = document.getElementById('map');
 
-            // 1. 地図の初期化 (福井県を中心に設定)
+            // 1. 地図の初期化 (日本全体が見える設定)
             const map = L.map('map', {
-                zoomControl: false,
+                zoomControl: true,
                 attributionControl: false
-            }).setView([35.95, 136.2], 8);
+            }).setView([37.5, 137.5], 5); // 全国表示
 
-            // 2. GeoJSONの読み込み (お手持ちの japan.geojson)
+            // 2. GeoJSONの読み込み
             fetch("{{ url_for('static', filename='japan.geojson') }}")
                 .then(res => res.json())
                 .then(geoData => {
                     L.geoJSON(geoData, {
                         style: {
-                            color: "#000",
-                            weight: 1,
+                            color: "#333",
+                            weight: 0.8,
                             fillColor: "#f0f0f0",
                             fillOpacity: 1
                         }
                     }).addTo(map);
                 });
 
-            // 3. 機器の緯度経度データ
+            // 3. 機器の緯度経度 & ThingSpeak設定
             const deviceMapping = {
                 "detail-a": { lat: 36.064, lng: 136.223, channelId: "2984916", readKey: "H8F1OIM9U1NLQE3M" },
                 "detail-b": { lat: 35.900, lng: 136.150, channelId: "2874643", readKey: "3L8GCQ6QQRJD9R2R" }
             };
 
-            // 4. マーカーの配置
+            // 4. マーカー配置とクリックイベント
             Object.keys(deviceMapping).forEach(targetId => {
                 const config = deviceMapping[targetId];
+                
                 const marker = L.circleMarker([config.lat, config.lng], {
-                    radius: 7,
+                    radius: 9,
                     fillColor: "#ff0000",
-                    color: "#fff",
+                    color: "#ffffff",
                     weight: 2,
                     opacity: 1,
-                    fillOpacity: 0.9
+                    fillOpacity: 1,
+                    pane: 'markerPane'
                 }).addTo(map);
+
+                marker.bringToFront();
 
                 marker.on('click', async (e) => {
                     const targetDetail = document.getElementById(targetId);
 
-                    // 即時クリア
                     detailBoxes.forEach(box => {
                         box.style.transition = 'none';
                         box.classList.remove('active');
@@ -108,10 +111,8 @@
                     });
                     svg.innerHTML = '';
 
-                    // データ取得
-                    await updateDeviceData(targetId, deviceMapping[targetId]);
+                    await updateDeviceData(targetId, config);
 
-                    // スライド表示
                     if (targetDetail) {
                         setTimeout(() => {
                             targetDetail.style.display = 'block';
@@ -126,17 +127,18 @@
             });
 
             async function updateDeviceData(targetId, config) {
-                const url = `https://api.thingspeak.com/channels/${config.channelId}/feeds.json?api_key=${config.readKey}&results=100`;
-                const box = document.getElementById(targetId);
+                const url = `https://api.thingspeak.com/channels/${config.channelId}/feeds.json?api_key=${config.readKey}&results=1`;
                 try {
                     const res = await fetch(url);
                     const data = await res.json();
-                    const latest = data.feeds[data.feeds.length - 1];
-                    if (!latest) return;
+                    const latest = data.feeds[0];
+                    const box = document.getElementById(targetId);
+                    if (!latest || !box) return;
 
                     const isOnline = latest.field2 === "1";
-                    box.querySelector('.status-tag').textContent = isOnline ? "ONLINE" : "OFFLINE";
-                    box.querySelector('.status-tag').className = `status-tag ${isOnline ? 'online' : 'offline'}`;
+                    const statusTag = box.querySelector('.status-tag');
+                    statusTag.textContent = isOnline ? "ONLINE" : "OFFLINE";
+                    statusTag.className = `status-tag ${isOnline ? 'online' : 'offline'}`;
                     box.querySelector('.val-status').textContent = isOnline ? "稼働中" : "停止中";
                     box.querySelector('.val-count').textContent = latest.field3 || "0";
                     box.querySelector('.val-temp').textContent = (latest.field1 ? parseFloat(latest.field1).toFixed(1) : "--.-") + "℃";
@@ -145,26 +147,23 @@
 
             function drawConnectingRods(point, activeDetail) {
                 svg.innerHTML = '';
-                const mapRect = document.getElementById('map').getBoundingClientRect();
+                const mapRect = mapContainer.getBoundingClientRect();
                 const detailRect = activeDetail.getBoundingClientRect();
-
                 const startX = point.x;
                 const startY = point.y;
-
-                const isMobile = window.innerWidth <= 768;
+                const isMobile = window.innerWidth <= 1024;
                 const endX = isMobile ? startX : (detailRect.left - mapRect.left);
-                const endY = isMobile ? (detailRect.top - mapRect.top) : (detailRect.top + 45 - mapRect.top);
+                const endY = isMobile ? (detailRect.top - mapRect.top) : (detailRect.top + 50 - mapRect.top);
 
                 const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                 line.setAttribute('x1', startX); line.setAttribute('y1', startY);
                 line.setAttribute('x2', endX); line.setAttribute('y2', endY);
-                line.setAttribute('stroke', '#ff0000'); line.setAttribute('stroke-width', '1');
+                line.setAttribute('stroke', '#ff0000'); line.setAttribute('stroke-width', '1.5');
                 line.setAttribute('stroke-dasharray', '4, 2');
                 svg.appendChild(line);
             }
 
-            // 地図を動かした時に線を消す
-            map.on('movestart', () => svg.innerHTML = '');
+            map.on('move zoomstart', () => svg.innerHTML = '');
         });
     </script>
 </body>
