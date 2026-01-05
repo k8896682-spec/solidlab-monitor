@@ -8,10 +8,9 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
+        /* 特定の要素のみ大文字化を解除 */
+        header h1 { text-transform: none !important; }
         .leaflet-interactive { transition: none !important; }
-        /* ステータス色の微調整 */
-        .status-tag.online { background: #28a745; color: white; }
-        .status-tag.offline { background: #dc3545; color: white; }
     </style>
 </head>
 <body>
@@ -35,7 +34,7 @@
             </div>
 
             <div id="detail-a" class="detail-box">
-                <div class="unit-header"><span class="status-tag">LOADING...</span><h3>UNIT 01A</h3></div>
+                <div class="unit-header"><span class="status-tag">LOADING...</span><h3>UNIT 1</h3></div>
                 <div class="data-grid">
                     <p><strong>拠点</strong> <span>tonakan1</span></p>
                     <p><strong>場所</strong> <span>福井県福井市</span></p>
@@ -46,7 +45,7 @@
             </div>
 
             <div id="detail-b" class="detail-box">
-                <div class="unit-header"><span class="status-tag">LOADING...</span><h3>UNIT 02B</h3></div>
+                <div class="unit-header"><span class="status-tag">LOADING...</span><h3>UNIT 2</h3></div>
                 <div class="data-grid">
                     <p><strong>拠点</strong> <span>tonakan2</span></p>
                     <p><strong>場所</strong> <span>福井県福井市</span></p>
@@ -63,14 +62,13 @@
             const detailBoxes = document.querySelectorAll('.detail-box');
             let activeMarker = null;
 
-            // 地図初期化
             const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([37.5, 137.5], 5);
 
             fetch("{{ url_for('static', filename='japan.geojson') }}")
                 .then(res => res.json())
                 .then(geoData => {
                     L.geoJSON(geoData, {
-                        style: { color: "#000", weight: 0.5, fillColor: "#f0f0f0", fillOpacity: 1 }
+                        style: { color: "#333", weight: 0.8, fillColor: "#e0e0e0", fillOpacity: 1 }
                     }).addTo(map);
                 });
 
@@ -81,8 +79,9 @@
 
             Object.keys(deviceMapping).forEach(targetId => {
                 const config = deviceMapping[targetId];
+                // 通常時のサイズを 5 に調整
                 const marker = L.circleMarker([config.lat, config.lng], {
-                    radius: 6, fillColor: "#ff0000", color: "#ffffff", weight: 1, opacity: 1, fillOpacity: 1, pane: 'markerPane' 
+                    radius: 5, fillColor: "#ff0000", color: "#ffffff", weight: 1.5, opacity: 1, fillOpacity: 1, pane: 'markerPane' 
                 }).addTo(map);
 
                 marker.on('click', async () => {
@@ -91,11 +90,11 @@
 
                     if(activeMarker) { 
                         activeMarker.setRadius(5); 
-                        activeMarker.setStyle({fillColor: "#ff0000", weight: 1}); 
+                        activeMarker.setStyle({fillColor: "#ff0000", weight: 1.5}); 
                     }
 
                     setTimeout(() => {
-                        marker.setRadius(8); 
+                        marker.setRadius(8); // 選択時は少し強調
                         marker.setStyle({fillColor: "#000000", weight: 2});
                         marker.bringToFront(); 
                         activeMarker = marker;
@@ -103,17 +102,15 @@
 
                     const targetDetail = document.getElementById(targetId);
                     detailBoxes.forEach(box => {
-                        box.style.transition = 'none'; box.classList.remove('active'); box.style.display = 'none';
+                        box.style.display = 'none';
+                        box.classList.remove('active');
                     });
 
-                    // データ更新（死活監視ロジック入り）
                     await updateDeviceData(targetId, config);
 
                     if (targetDetail) {
-                        setTimeout(() => {
-                            targetDetail.style.display = 'block'; targetDetail.style.transition = '';
-                            requestAnimationFrame(() => { targetDetail.classList.add('active'); });
-                        }, 100);
+                        targetDetail.style.display = 'block';
+                        requestAnimationFrame(() => { targetDetail.classList.add('active'); });
                     }
                 });
             });
@@ -127,35 +124,27 @@
                     const box = document.getElementById(targetId);
                     if (!latest || !box) return;
 
-                    // --- 💡 修正点：死活監視ロジック ---
                     const lastUpdate = new Date(latest.created_at);
                     const now = new Date();
-                    // 最終更新からの経過時間（分）を計算
                     const diffMinutes = (now - lastUpdate) / 1000 / 60; 
 
-                    // 2分以上更新がなければ「通信途絶＝オフライン」と判断
+                    // 2分以上更新がなければオフライン
                     const isTimeOut = diffMinutes > 2;
                     const isOnline = !isTimeOut && (latest.field2 === "1");
-                    // --------------------------------
 
                     const statusTag = box.querySelector('.status-tag');
                     statusTag.textContent = isOnline ? "ONLINE" : "OFFLINE";
                     statusTag.className = `status-tag ${isOnline ? 'online' : 'offline'}`;
                     
-                    // 稼働状態でなければ、各項目を初期表示 (-- など) に戻す
                     box.querySelector('.val-status').textContent = isOnline ? "稼働中" : "停止中";
                     box.querySelector('.val-count').textContent = latest.field3 || "0";
                     
-                    // 停止中の場合は温度を「--.-℃」にする（ご要望のnan表示に近い形）
                     if (isOnline && latest.field1) {
                         box.querySelector('.val-temp').textContent = parseFloat(latest.field1).toFixed(1) + "℃";
                     } else {
                         box.querySelector('.val-temp').textContent = "--.-℃";
                     }
-
-                } catch (e) { 
-                    console.error("Data fetch error:", e);
-                }
+                } catch (e) { console.error(e); }
             }
         });
     </script>
