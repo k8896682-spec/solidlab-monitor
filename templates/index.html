@@ -7,11 +7,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <style>
-        /* 特定の要素のみ大文字化を解除 */
-        header h1 { text-transform: none !important; }
-        .leaflet-interactive { transition: none !important; }
-    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -21,7 +17,7 @@
 
     <main class="container">
         <section class="map-section">
-            <div class="section-label">NATIONAL MONITORING MAP</div>
+            <div class="section-label">NATIONAL MONITORING MAP (AUTO-SYNC)</div>
             <div id="map" class="japan-map-container"></div>
         </section>
 
@@ -34,24 +30,30 @@
             </div>
 
             <div id="detail-a" class="detail-box">
-                <div class="unit-header"><span class="status-tag">LOADING...</span><h3>UNIT 1</h3></div>
+                <div class="unit-header"><span class="status-tag">LOADING...</span><h3>UNIT 01A</h3></div>
                 <div class="data-grid">
                     <p><strong>拠点</strong> <span>tonakan1</span></p>
                     <p><strong>場所</strong> <span>福井県福井市</span></p>
                     <p><strong>稼働状態</strong> <span class="val-status">--</span></p>
                     <p><strong>電源投入回数</strong> <span class="val-count">--</span></p>
-                    <p><strong>温度データ</strong> <span class="val-temp">--.-℃</span></p>
+                    <p><strong>最新温度</strong> <span class="val-temp">--.-℃</span></p>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="chart-detail-a"></canvas>
                 </div>
             </div>
 
             <div id="detail-b" class="detail-box">
-                <div class="unit-header"><span class="status-tag">LOADING...</span><h3>UNIT 2</h3></div>
+                <div class="unit-header"><span class="status-tag">LOADING...</span><h3>UNIT 02B</h3></div>
                 <div class="data-grid">
                     <p><strong>拠点</strong> <span>tonakan2</span></p>
                     <p><strong>場所</strong> <span>福井県福井市</span></p>
                     <p><strong>稼働状態</strong> <span class="val-status">--</span></p>
                     <p><strong>電源投入回数</strong> <span class="val-count">--</span></p>
-                    <p><strong>温度データ</strong> <span class="val-temp">--.-℃</span></p>
+                    <p><strong>最新温度</strong> <span class="val-temp">--.-℃</span></p>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="chart-detail-b"></canvas>
                 </div>
             </div>
         </section>
@@ -61,91 +63,156 @@
         document.addEventListener('DOMContentLoaded', () => {
             const detailBoxes = document.querySelectorAll('.detail-box');
             let activeMarker = null;
+            let charts = {}; // グラフオブジェクト保持用
 
-            const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([37.5, 137.5], 5);
+            // 1. 地図初期化
+            const map = L.map('map', {
+                zoomControl: true,
+                attributionControl: false
+            }).setView([37.5, 137.5], 5);
 
+            // 2. GeoJSON読み込み (背景地図)
             fetch("{{ url_for('static', filename='japan.geojson') }}")
                 .then(res => res.json())
                 .then(geoData => {
                     L.geoJSON(geoData, {
-                        style: { color: "#333", weight: 0.8, fillColor: "#e0e0e0", fillOpacity: 1 }
+                        style: { color: "#000", weight: 0.5, fillColor: "#f0f0f0", fillOpacity: 1 }
                     }).addTo(map);
                 });
 
+            // 3. 機器設定
             const deviceMapping = {
                 "detail-a": { lat: 36.064, lng: 136.223, channelId: "2984916", readKey: "H8F1OIM9U1NLQE3M" },
                 "detail-b": { lat: 35.900, lng: 136.150, channelId: "2874643", readKey: "3L8GCQ6QQRJD9R2R" }
             };
 
+            // 4. マーカーとグラフの初期化
             Object.keys(deviceMapping).forEach(targetId => {
                 const config = deviceMapping[targetId];
-                // 通常時のサイズを 5 に調整
+                
+                // 初期状態は灰色
                 const marker = L.circleMarker([config.lat, config.lng], {
-                    radius: 5, fillColor: "#ff0000", color: "#ffffff", weight: 1.5, opacity: 1, fillOpacity: 1, pane: 'markerPane' 
+                    radius: 7, 
+                    fillColor: "#999", 
+                    color: "#ffffff", weight: 1, opacity: 1, fillOpacity: 1,
+                    pane: 'markerPane' 
                 }).addTo(map);
 
+                config.marker = marker; // markerをconfigに保存
+
+                // 初回ステータス反映
+                updateDeviceData(targetId, config);
+
                 marker.on('click', async () => {
-                    const targetZoom = map.getZoom() < 7 ? 8 : map.getZoom();
-                    map.flyTo([config.lat, config.lng], targetZoom, { animate: true, duration: 0.8 });
+                    map.flyTo([config.lat, config.lng], 7, { animate: true, duration: 1.0 });
 
+                    // 前のアクティブ状態をリセット
                     if(activeMarker) { 
-                        activeMarker.setRadius(5); 
-                        activeMarker.setStyle({fillColor: "#ff0000", weight: 1.5}); 
+                        const prevId = Object.keys(deviceMapping).find(key => deviceMapping[key].marker === activeMarker);
+                        refreshMarkerStyle(activeMarker, prevId); 
                     }
+                    
+                    // 選択中のスタイル（黒枠）
+                    marker.setRadius(10); 
+                    marker.setStyle({ weight: 3, color: "#000" });
+                    marker.bringToFront();
+                    activeMarker = marker;
 
-                    setTimeout(() => {
-                        marker.setRadius(8); // 選択時は少し強調
-                        marker.setStyle({fillColor: "#000000", weight: 2});
-                        marker.bringToFront(); 
-                        activeMarker = marker;
-                    }, 800);
-
-                    const targetDetail = document.getElementById(targetId);
+                    // 詳細表示の切り替え
                     detailBoxes.forEach(box => {
                         box.style.display = 'none';
                         box.classList.remove('active');
                     });
 
+                    const targetDetail = document.getElementById(targetId);
                     await updateDeviceData(targetId, config);
+                    renderChart(targetId, config); // グラフ描画
 
                     if (targetDetail) {
                         targetDetail.style.display = 'block';
-                        requestAnimationFrame(() => { targetDetail.classList.add('active'); });
+                        setTimeout(() => targetDetail.classList.add('active'), 10);
                     }
                 });
             });
 
+            // データ更新関数
             async function updateDeviceData(targetId, config) {
                 const url = `https://api.thingspeak.com/channels/${config.channelId}/feeds.json?api_key=${config.readKey}&results=1`;
                 try {
                     const res = await fetch(url);
                     const data = await res.json();
                     const latest = data.feeds[0];
+                    if (!latest) return;
+
+                    const isOnline = latest.field2 === "1";
+                    
+                    // マーカーの色更新 (Online:青, Offline:赤)
+                    config.marker.setStyle({ fillColor: isOnline ? "#007bff" : "#ff4d4d" });
+
+                    // UI要素の更新
                     const box = document.getElementById(targetId);
-                    if (!latest || !box) return;
-
-                    const lastUpdate = new Date(latest.created_at);
-                    const now = new Date();
-                    const diffMinutes = (now - lastUpdate) / 1000 / 60; 
-
-                    // 2分以上更新がなければオフライン
-                    const isTimeOut = diffMinutes > 2;
-                    const isOnline = !isTimeOut && (latest.field2 === "1");
-
-                    const statusTag = box.querySelector('.status-tag');
-                    statusTag.textContent = isOnline ? "ONLINE" : "OFFLINE";
-                    statusTag.className = `status-tag ${isOnline ? 'online' : 'offline'}`;
-                    
-                    box.querySelector('.val-status').textContent = isOnline ? "稼働中" : "停止中";
-                    box.querySelector('.val-count').textContent = latest.field3 || "0";
-                    
-                    if (isOnline && latest.field1) {
-                        box.querySelector('.val-temp').textContent = parseFloat(latest.field1).toFixed(1) + "℃";
-                    } else {
-                        box.querySelector('.val-temp').textContent = "--.-℃";
+                    if (box && box.classList.contains('active')) {
+                        const statusTag = box.querySelector('.status-tag');
+                        statusTag.textContent = isOnline ? "ONLINE" : "OFFLINE";
+                        statusTag.className = `status-tag ${isOnline ? 'online' : 'offline'}`;
+                        box.querySelector('.val-status').textContent = isOnline ? "稼働中" : "停止中";
+                        box.querySelector('.val-count').textContent = latest.field3 || "0";
+                        box.querySelector('.val-temp').textContent = (latest.field1 ? parseFloat(latest.field1).toFixed(1) : "--.-") + "℃";
                     }
                 } catch (e) { console.error(e); }
             }
+
+            // マーカーのスタイルを通常時に戻す
+            function refreshMarkerStyle(marker, targetId) {
+                marker.setRadius(7);
+                marker.setStyle({ weight: 1, color: "#ffffff" });
+            }
+
+            // Chart.js 描画
+            async function renderChart(targetId, config) {
+                const canvasId = `chart-${targetId}`;
+                const ctx = document.getElementById(canvasId).getContext('2d');
+                
+                const url = `https://api.thingspeak.com/channels/${config.channelId}/feeds.json?api_key=${config.readKey}&results=20`;
+                const res = await fetch(url);
+                const data = await res.json();
+                
+                const labels = data.feeds.map(f => new Date(f.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
+                const temps = data.feeds.map(f => parseFloat(f.field1));
+
+                if (charts[targetId]) { charts[targetId].destroy(); }
+
+                charts[targetId] = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Temperature',
+                            data: temps,
+                            borderColor: '#000',
+                            backgroundColor: 'rgba(0,0,0,0.05)',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            fill: true,
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { grid: { color: '#f0f0f0' } },
+                            x: { grid: { display: false } }
+                        }
+                    }
+                });
+            }
+
+            // 30秒ごとに全データの状態を自動更新
+            setInterval(() => {
+                Object.keys(deviceMapping).forEach(id => updateDeviceData(id, deviceMapping[id]));
+            }, 30000);
         });
     </script>
 </body>
