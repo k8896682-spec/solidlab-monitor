@@ -2,7 +2,9 @@
     --color-black: #000000;
     --color-white: #ffffff;
     --color-bg: #f8f9fa;
-    --color-accent: #ff0000;
+    --color-accent: #ff4d4d; /* Offline赤 */
+    --color-online: #2ecc71; /* Online緑 */
+    --color-border: #eeeeee;
 }
 
 body {
@@ -10,86 +12,81 @@ body {
     margin: 0;
     background-color: var(--color-bg);
     color: var(--color-black);
+    -webkit-font-smoothing: antialiased;
 }
 
 header {
     background-color: var(--color-black);
     color: var(--color-white);
-    padding: 15px 20px;
+    padding: 20px 40px;
+    border-bottom: 1px solid #333;
 }
 
-    header h1 {
-        margin: 0;
-        font-size: 0.8rem;
-        letter-spacing: 0.2rem;
-        text-transform: uppercase;
-    }
+header h1 {
+    margin: 0;
+    font-size: 0.9rem;
+    letter-spacing: 0.3rem;
+    text-transform: uppercase;
+    font-weight: 800;
+}
 
-/* PC用レイアウト */
+header h1 span {
+    font-weight: 200;
+    opacity: 0.5;
+    margin-left: 15px;
+    letter-spacing: 0.1rem;
+}
+
+/* --- レイアウト構造 --- */
 .container {
     display: flex;
-    flex-direction: row; /* 横並び */
-    max-width: 1400px;
-    margin: 20px auto;
+    flex-direction: row;
+    max-width: 1600px;
+    margin: 30px auto;
     background-color: var(--color-white);
-    min-height: 80vh;
+    min-height: 850px;
+    box-shadow: 0 40px 100px rgba(0,0,0,0.08);
+    border-radius: 4px;
 }
 
+.section-label {
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #ccc;
+    letter-spacing: 0.2rem;
+    margin-bottom: 25px;
+    text-transform: uppercase;
+}
+
+/* --- 地図セクション --- */
 .map-section {
     flex: 3;
-    padding: 30px;
-    border-right: 1px solid #eee;
+    padding: 40px;
+    border-right: 1px solid var(--color-border);
     position: relative;
-}
-
-.content-section {
-    flex: 2;
-    padding: 30px;
-    overflow: hidden;
-    position: relative;
-}
-
-/* スマホ用レイアウト (画面幅768px以下) */
-@media (max-width: 768px) {
-    .container {
-        flex-direction: column; /* 縦並び */
-        margin: 0;
-        min-height: auto;
-    }
-
-    .map-section {
-        border-right: none;
-        border-bottom: 1px solid #eee;
-        padding: 20px;
-    }
-
-    .japan-map-container {
-        height: 350px !important;
-    }
+    background-color: #fff;
 }
 
 .japan-map-container {
     position: relative;
     width: 100%;
-    height: 500px;
+    height: 700px; /* PCでは高さをしっかり確保 */
+    z-index: 1;
 }
 
-.japan-map-img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    filter: grayscale(1);
-    opacity: 0.4;
+/* Leaflet地図のグレー化 */
+.leaflet-container {
+    filter: grayscale(100%) contrast(1.1) brightness(1.1);
+    background: #fff !important;
 }
 
-.equipment-marker {
-    position: absolute;
-    width: 14px;
-    height: 14px;
-    background-color: var(--color-accent);
-    border-radius: 50%;
-    cursor: pointer;
-    z-index: 10;
+/* --- 詳細セクション --- */
+.content-section {
+    flex: 2;
+    padding: 60px 45px;
+    overflow-y: auto;
+    position: relative;
+    background-color: #fff;
 }
 
 .detail-box {
@@ -99,49 +96,114 @@ header {
     transition: transform 0.8s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.6s ease-out;
 }
 
-    .detail-box.active {
-        opacity: 1;
-        transform: translateX(0);
-    }
+.detail-box.active {
+    display: block;
+    opacity: 1;
+    transform: translateX(0);
+}
 
+/* --- ユニット情報（文字サイズ拡大） --- */
 .unit-header h3 {
-    font-size: 2.5rem;
-    margin: 0;
+    font-size: 4.5rem; /* ユニット名を巨大化 */
+    margin: 15px 0;
     font-weight: 900;
+    letter-spacing: -0.15rem;
+    line-height: 1;
 }
 
 .status-tag {
-    font-size: 0.6rem;
-    padding: 2px 6px;
-    border: 1px solid #000;
+    font-size: 0.8rem;
+    padding: 6px 14px;
+    font-weight: 900;
+    border-radius: 4px;
     display: inline-block;
-    margin-bottom: 10px;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    border: none;
 }
 
+/* ONLINE/OFFLINEの色指定 */
 .online {
-    color: #000;
-    border-color: #000;
+    background-color: var(--color-online) !important;
+    color: #fff !important;
 }
 
 .offline {
-    color: #ccc;
-    border-color: #ccc;
+    background-color: var(--color-accent) !important;
+    color: #fff !important;
+}
+
+/* --- データグリッド（文字サイズ拡大） --- */
+.data-grid {
+    margin-top: 40px;
+    margin-bottom: 40px;
 }
 
 .data-grid p {
     display: flex;
     justify-content: space-between;
-    padding: 15px 0;
-    border-bottom: 1px solid #eee;
-    font-size: 0.85rem;
+    align-items: baseline;
+    padding: 22px 0;
+    border-bottom: 1px solid #f2f2f2;
+    margin: 0;
 }
 
-#connecting-rods-svg {
-    position: absolute;
-    top: 0;
-    left: 0;
+.data-grid p strong {
+    color: #888;
+    font-weight: 400;
+    font-size: 1.0rem;
+    text-transform: uppercase;
+}
+
+.data-grid p span {
+    font-weight: 700;
+    font-size: 1.8rem; /* 数値を大きく */
+    color: var(--color-black);
+}
+
+/* 温度だけさらに大きく強調 */
+.val-temp {
+    font-size: 2.2rem !important;
+}
+
+/* --- グラフエリア --- */
+.chart-wrapper {
     width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 5;
+    height: 300px;
+    margin-top: 40px;
+    padding: 20px;
+    background-color: #fafafa;
+    border-radius: 8px;
+    border: 1px solid #f0f0f0;
+}
+
+/* --- スマホ用レイアウト (768px以下) --- */
+@media (max-width: 1024px) {
+    .container {
+        flex-direction: column;
+        margin: 0;
+        min-height: auto;
+    }
+
+    .map-section {
+        border-right: none;
+        border-bottom: 1px solid var(--color-border);
+        padding: 20px;
+    }
+
+    .japan-map-container {
+        height: 450px !important;
+    }
+
+    .content-section {
+        padding: 40px 20px;
+    }
+
+    .unit-header h3 {
+        font-size: 3rem;
+    }
+
+    .data-grid p span {
+        font-size: 1.4rem;
+    }
 }
