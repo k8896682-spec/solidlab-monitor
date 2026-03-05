@@ -3,8 +3,6 @@
     --color-white: #ffffff;
     --color-bg: #f8f9fa;
     --color-accent: #ff0000;
-    --color-online: #007bff; /* 稼働中：青 */
-    --color-offline: #ff4d4d; /* 停止中：赤 */
 }
 
 body {
@@ -20,28 +18,21 @@ header {
     padding: 15px 20px;
 }
 
-header h1 {
-    margin: 0;
-    font-size: 0.8rem;
-    letter-spacing: 0.2rem;
-    text-transform: uppercase;
-}
+    header h1 {
+        margin: 0;
+        font-size: 0.8rem;
+        letter-spacing: 0.2rem;
+        text-transform: uppercase;
+    }
 
-header h1 span {
-    font-weight: 300;
-    margin-left: 10px;
-    opacity: 0.7;
-}
-
-/* レイアウト構成 */
+/* PC用レイアウト */
 .container {
     display: flex;
-    flex-direction: row;
+    flex-direction: row; /* 横並び */
     max-width: 1400px;
     margin: 20px auto;
     background-color: var(--color-white);
-    min-height: 85vh;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    min-height: 80vh;
 }
 
 .map-section {
@@ -56,100 +47,14 @@ header h1 span {
     padding: 30px;
     overflow: hidden;
     position: relative;
-    background-color: #fff;
 }
 
-.section-label {
-    font-size: 0.65rem;
-    font-weight: 900;
-    letter-spacing: 0.1rem;
-    margin-bottom: 20px;
-    color: #999;
-}
-
-/* 地図コンテナ */
-.japan-map-container {
-    width: 100%;
-    height: 600px;
-    background-color: #fcfcfc;
-}
-
-/* 詳細ボックスの挙動 */
-.detail-box {
-    display: none;
-    opacity: 0;
-    transform: translateX(30px);
-    transition: transform 0.6s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.4s ease-out;
-}
-
-.detail-box.active {
-    display: block;
-    opacity: 1;
-    transform: translateX(0);
-}
-
-.unit-header h3 {
-    font-size: 2.5rem;
-    margin: 5px 0 20px 0;
-    font-weight: 900;
-}
-
-/* ステータスタグ（動的クラス） */
-.status-tag {
-    font-size: 0.7rem;
-    font-weight: bold;
-    padding: 4px 12px;
-    border: 1px solid #000;
-    display: inline-block;
-    letter-spacing: 1px;
-    transition: all 0.3s;
-}
-
-.status-tag.online {
-    background-color: var(--color-online);
-    color: #fff;
-    border-color: var(--color-online);
-}
-
-.status-tag.offline {
-    background-color: var(--color-offline);
-    color: #fff;
-    border-color: var(--color-offline);
-}
-
-/* データ表示グリッド */
-.data-grid p {
-    display: flex;
-    justify-content: space-between;
-    padding: 18px 0;
-    border-bottom: 1px solid #eee;
-    font-size: 0.9rem;
-    margin: 0;
-}
-
-.data-grid p strong {
-    color: #666;
-    font-weight: 500;
-}
-
-.data-grid p span {
-    font-weight: bold;
-}
-
-/* グラフエリア */
-.chart-wrapper {
-    margin-top: 30px;
-    height: 220px;
-    width: 100%;
-    border-top: 1px solid #eee;
-    padding-top: 25px;
-}
-
-/* スマホ対応 */
-@media (max-width: 900px) {
+/* スマホ用レイアウト (画面幅768px以下) */
+@media (max-width: 768px) {
     .container {
-        flex-direction: column;
+        flex-direction: column; /* 縦並び */
         margin: 0;
+        min-height: auto;
     }
 
     .map-section {
@@ -159,14 +64,84 @@ header h1 span {
     }
 
     .japan-map-container {
-        height: 400px;
+        height: 350px !important;
+    }
+}
+
+.japan-map-container {
+    position: relative;
+    width: 100%;
+    height: 500px;
+}
+
+.japan-map-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: grayscale(1);
+    opacity: 0.4;
+}
+
+.equipment-marker {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background-color: var(--color-accent);
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 10;
+}
+
+.detail-box {
+    display: none;
+    opacity: 0;
+    transform: translateX(50px);
+    transition: transform 0.8s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.6s ease-out;
+}
+
+    .detail-box.active {
+        opacity: 1;
+        transform: translateX(0);
     }
 
-    .unit-header h3 {
-        font-size: 1.8rem;
-    }
+.unit-header h3 {
+    font-size: 2.5rem;
+    margin: 0;
+    font-weight: 900;
+}
 
-    .chart-wrapper {
-        height: 180px;
-    }
+.status-tag {
+    font-size: 0.6rem;
+    padding: 2px 6px;
+    border: 1px solid #000;
+    display: inline-block;
+    margin-bottom: 10px;
+}
+
+.online {
+    color: #000;
+    border-color: #000;
+}
+
+.offline {
+    color: #ccc;
+    border-color: #ccc;
+}
+
+.data-grid p {
+    display: flex;
+    justify-content: space-between;
+    padding: 15px 0;
+    border-bottom: 1px solid #eee;
+    font-size: 0.85rem;
+}
+
+#connecting-rods-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
 }
